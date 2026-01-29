@@ -1,0 +1,3 @@
+*.tres text eol=lf
+*.translation binary
+*.import text eol=lf
