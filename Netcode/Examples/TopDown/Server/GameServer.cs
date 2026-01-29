@@ -5,7 +5,7 @@ namespace Framework.Netcode.Sandbox.Topdown;
 
 public partial class GameServer : GodotServer
 {
-    protected override void OnDisconnected(Event netEvent)
+    protected override void OnDisconnect(Event netEvent)
     {
         
     }
