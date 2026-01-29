@@ -35,20 +35,10 @@ public class Profiler
 
     public void StartProcess(string key, int accuracy = DefaultAccuracy)
     {
-        StartMonitor(key, accuracy, Game.Metrics.StartMonitoringProcess);
+        StartMonitor(key, accuracy, Game.Metrics.StartMonitoring);
     }
 
     public void StopProcess(string key)
-    {
-        _entries[key].Stop();
-    }
-
-    public void StartPhysicsProcess(string key, int accuracy = DefaultAccuracy)
-    {
-        StartMonitor(key, accuracy, Game.Metrics.StartMonitoringPhysicsProcess);
-    }
-
-    public void StopPhysicsProcess(string key)
     {
         _entries[key].Stop();
     }
