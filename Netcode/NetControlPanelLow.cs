@@ -3,7 +3,7 @@ using GodotUtils.Netcode.Client;
 using GodotUtils.Netcode.Server;
 using System;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Control
     where TGameClient : GodotClient, new()

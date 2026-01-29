@@ -1,4 +1,4 @@
-namespace GodotUtils.Netcode.Server;
+namespace Framework.Netcode.Server;
 
 public enum ENetServerOpcode
 {

@@ -1,6 +1,6 @@
 using System;
 
-namespace GodotUtils.Netcode.Client;
+namespace Framework.Netcode.Client;
 
 public class PacketData
 {

@@ -2,7 +2,7 @@ using ENet;
 using Godot;
 using GodotUtils.Netcode.Client;
 
-namespace GodotUtils.Netcode.Sandbox.Topdown;
+namespace Framework.Netcode.Sandbox.Topdown;
 
 public partial class GameClient : GodotClient
 {

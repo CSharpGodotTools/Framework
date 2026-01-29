@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 public static class PacketRegistry
 {

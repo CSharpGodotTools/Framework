@@ -1,4 +1,4 @@
-namespace GodotUtils.Netcode.Client;
+namespace Framework.Netcode.Client;
 
 public enum ENetClientOpcode
 {

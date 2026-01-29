@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using GodotUtils.Netcode.Client;
 using GodotUtils.Netcode.Server;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 public class Net
 {

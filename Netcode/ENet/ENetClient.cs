@@ -2,7 +2,7 @@ using ENet;
 using System.Collections.Concurrent;
 using System;
 
-namespace GodotUtils.Netcode.Client;
+namespace Framework.Netcode.Client;
 
 // ENet API Reference: https://github.com/SoftwareGuy/ENet-CSharp/blob/master/DOCUMENTATION.md
 public abstract class ENetClient : ENetLow

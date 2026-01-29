@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System;
 
-namespace GodotUtils.Netcode.Server;
+namespace Framework.Netcode.Server;
 
 public abstract class GodotServer : ENetServer
 {

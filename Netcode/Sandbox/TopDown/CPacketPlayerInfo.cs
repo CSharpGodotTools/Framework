@@ -2,7 +2,7 @@ using ENet;
 using Godot;
 using GodotUtils.Netcode.Server;
 
-namespace GodotUtils.Netcode.Sandbox.Topdown;
+namespace Framework.Netcode.Sandbox.Topdown;
 
 public class CPacketPlayerInfo : ClientPacket
 {

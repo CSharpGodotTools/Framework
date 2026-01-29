@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 /// <summary>
 /// ENetServer and ENetClient both extend from this class.

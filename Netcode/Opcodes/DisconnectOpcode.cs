@@ -1,4 +1,4 @@
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 public enum DisconnectOpcode
 {

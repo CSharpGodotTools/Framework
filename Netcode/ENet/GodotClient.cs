@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System;
 
-namespace GodotUtils.Netcode.Client;
+namespace Framework.Netcode.Client;
 
 public abstract class GodotClient : ENetClient
 {

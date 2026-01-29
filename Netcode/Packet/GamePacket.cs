@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 /// <summary>
 /// A base class with common functionality for Client and Server packets

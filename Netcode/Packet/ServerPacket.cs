@@ -2,7 +2,7 @@ using ENet;
 using System;
 using GodotUtils.Netcode.Client;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 /// <summary>
 /// A packet sent from the server to other client(s)

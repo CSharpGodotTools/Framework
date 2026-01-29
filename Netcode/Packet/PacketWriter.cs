@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 public class PacketWriter : IDisposable
 {

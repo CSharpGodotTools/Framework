@@ -1,7 +1,7 @@
 using GodotUtils.Netcode.Server;
 using System;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 /// <summary>
 /// A packet sent from the client to the server

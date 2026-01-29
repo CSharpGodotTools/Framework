@@ -1,6 +1,6 @@
 using System;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 [AttributeUsage(AttributeTargets.Property)]
 public class NetExcludeAttribute : Attribute

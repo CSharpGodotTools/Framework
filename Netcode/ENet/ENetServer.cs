@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System;
 using System.IO;
 
-namespace GodotUtils.Netcode.Server;
+namespace Framework.Netcode.Server;
 
 // ENet API Reference: https://github.com/SoftwareGuy/ENet-CSharp/blob/master/DOCUMENTATION.md
 public abstract class ENetServer : ENetLow

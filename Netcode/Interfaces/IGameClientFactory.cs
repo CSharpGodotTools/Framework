@@ -1,6 +1,6 @@
 using GodotUtils.Netcode.Client;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 public interface IGameClientFactory
 {

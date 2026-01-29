@@ -1,6 +1,6 @@
 using GodotUtils.Netcode.Server;
 
-namespace GodotUtils.Netcode;
+namespace Framework.Netcode;
 
 public interface IGameServerFactory
 {
