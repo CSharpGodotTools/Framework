@@ -24,7 +24,7 @@ public class OptionsGeneral : IDisposable
 
     private void GetOptions()
     {
-        _options = Game.Options.GetOptions();
+        _options = GameFramework.Options.GetOptions();
     }
 
     private void SetupLanguage()

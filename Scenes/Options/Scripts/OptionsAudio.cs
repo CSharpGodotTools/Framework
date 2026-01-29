@@ -28,7 +28,7 @@ public partial class OptionsAudio : IDisposable
 
     private void GetOptions()
     {
-        _options = Game.Options.GetOptions();
+        _options = GameFramework.Options.GetOptions();
     }
 
     private void SetupMusic()
@@ -45,11 +45,11 @@ public partial class OptionsAudio : IDisposable
 
     private void OnMusicValueChanged(double v)
     {
-        Game.Audio.SetMusicVolume((float)v);
+        GameFramework.Audio.SetMusicVolume((float)v);
     }
 
     private void OnSoundsValueChanged(double v)
     {
-        Game.Audio.SetSFXVolume((float)v);
+        GameFramework.Audio.SetSFXVolume((float)v);
     }
 }

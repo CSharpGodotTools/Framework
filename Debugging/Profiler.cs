@@ -35,7 +35,7 @@ public class Profiler
 
     public void StartProcess(string key, int accuracy = DefaultAccuracy)
     {
-        StartMonitor(key, accuracy, Game.Metrics.StartMonitoring);
+        StartMonitor(key, accuracy, GameFramework.Metrics.StartMonitoring);
     }
 
     public void StopProcess(string key)

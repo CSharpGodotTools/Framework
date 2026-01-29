@@ -62,7 +62,7 @@ public partial class ModLoader : Node
     {
         if (Input.IsActionJustPressed(InputActions.UICancel))
         {
-            Game.Scene.SwitchToMainMenu();
+            GameFramework.Scene.SwitchToMainMenu();
         }
     }
 
@@ -89,7 +89,7 @@ public partial class ModLoader : Node
     {
         //OS.CreateProcess(OS.GetExecutablePath(), null);
         OS.CreateInstance(null);
-        await Autoloads.Instance.ExitGame();
+        await AutoloadsFramework.Instance.ExitGame();
     }
 
     private static void _OnOpenModsFolderPressed()

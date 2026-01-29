@@ -99,18 +99,18 @@ public class OptionsNav : IDisposable
 
     private void FocusOnLastClickedNavBtn()
     {
-        _buttons[Game.Options.GetCurrentTab()].GrabFocus();
+        _buttons[GameFramework.Options.GetCurrentTab()].GrabFocus();
     }
 
     private void ShowCurrentTab(Label titleLabel)
     {
-        ShowTab(titleLabel, Game.Options.GetCurrentTab());
+        ShowTab(titleLabel, GameFramework.Options.GetCurrentTab());
     }
 
     private void ShowTab(Label titleLabel, string tabName)
     {
         titleLabel.Text = tabName;
-        Game.Options.SetCurrentTab(tabName);
+        GameFramework.Options.SetCurrentTab(tabName);
         HideAllTabs();
         _tabs[tabName].Show();
     }

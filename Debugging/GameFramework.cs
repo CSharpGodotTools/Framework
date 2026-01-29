@@ -5,7 +5,7 @@ using System;
 
 namespace Framework;
 
-public static partial class Game
+public partial class GameFramework
 {
 #if DEBUG
     /// <summary>
@@ -13,9 +13,9 @@ public static partial class Game
     /// that the developer cannot access the autoloads singleton just yet and it needs time to
     /// setup.
     /// </summary>
-    private static T IsAutoloadsSetup<T>(Func<Autoloads, T> getPropertyFrom, string propertyName) where T : class
+    private static T IsAutoloadsSetup<T>(Func<AutoloadsFramework, T> getPropertyFrom, string propertyName) where T : class
     {
-        Autoloads autoloads = Autoloads.Instance;
+        AutoloadsFramework autoloads = AutoloadsFramework.Instance;
 
         if (autoloads == null)
         {

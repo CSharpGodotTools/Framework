@@ -55,7 +55,7 @@ public class OptionsDisplay : IDisposable
         _resY.TextChanged -= OnWindowHeightTextChanged;
         _resY.TextSubmitted -= OnWindowHeightTextSubmitted;
 
-        Game.Options.WindowModeChanged -= _selectWindowModeAction;
+        GameFramework.Options.WindowModeChanged -= _selectWindowModeAction;
 
         _resolutionSlider.ValueChanged -= OnResolutionValueChanged;
 
@@ -64,7 +64,7 @@ public class OptionsDisplay : IDisposable
 
     private void GetOptions()
     {
-        _options = Game.Options.GetOptions();
+        _options = GameFramework.Options.GetOptions();
     }
 
     private void SetupMaxFps(Button displayBtn)
@@ -112,7 +112,7 @@ public class OptionsDisplay : IDisposable
 
         _selectWindowModeAction = SelectWindowMode;
 
-        Game.Options.WindowModeChanged += _selectWindowModeAction;
+        GameFramework.Options.WindowModeChanged += _selectWindowModeAction;
 
         void SelectWindowMode(WindowMode windowMode)
         {

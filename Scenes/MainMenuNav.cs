@@ -17,13 +17,13 @@ public partial class MainMenuNav : Node
     // Godot Overrides
     public override void _Ready()
     {
-        _scene = Game.Scene;
+        _scene = GameFramework.Scene;
         _viewport = GetViewport();
         _playBtn = GetNode<Button>("Play");
 
         FocusOnPlayBtn();
 
-        Game.Scene.PostSceneChanged += OnPostSceneChanged;
+        GameFramework.Scene.PostSceneChanged += OnPostSceneChanged;
 
         _viewport.GuiFocusChanged += OnGuiFocusChanged;
     }
@@ -48,13 +48,13 @@ public partial class MainMenuNav : Node
     public override void _ExitTree()
     {
         _viewport.GuiFocusChanged -= OnGuiFocusChanged;
-        Game.Scene.PostSceneChanged -= OnPostSceneChanged;
+        GameFramework.Scene.PostSceneChanged -= OnPostSceneChanged;
     }
 
     // FocusOnPlayBtn
     private void FocusOnPlayBtn()
     {
-        Game.FocusOutline.Focus(_playBtn);
+        GameFramework.FocusOutline.Focus(_playBtn);
     }
 
     // Subscribers
@@ -80,7 +80,7 @@ public partial class MainMenuNav : Node
 
     private async void _OnQuitPressed()
     {
-        await Autoloads.Instance.ExitGame();
+        await AutoloadsFramework.Instance.ExitGame();
     }
 
     private void _OnDiscordPressed()

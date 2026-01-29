@@ -17,13 +17,13 @@ public class AudioManager : IDisposable
     private Pool<AudioStreamPlayer2D> _sfxPool;
     private AudioStreamPlayer _musicPlayer;
     private ResourceOptions _options;
-    private Autoloads _autoloads;
+    private AutoloadsFramework _autoloads;
     private float _lastPitch;
 
     /// <summary>
     /// Initializes the AudioManager by attaching a music player to the given autoload node.
     /// </summary>
-    public AudioManager(Autoloads autoloads)
+    public AudioManager(AutoloadsFramework autoloads)
     {
         SetupFields(autoloads);
         SetupSfxPool();
@@ -105,10 +105,10 @@ public class AudioManager : IDisposable
     }
 
     // Private Methods
-    private void SetupFields(Autoloads autoloads)
+    private void SetupFields(AutoloadsFramework autoloads)
     {
         _autoloads = autoloads;
-        _options = Game.Options.GetOptions();
+        _options = GameFramework.Options.GetOptions();
     }
 
     private void SetupSfxPool()

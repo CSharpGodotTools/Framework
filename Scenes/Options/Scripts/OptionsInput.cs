@@ -25,7 +25,7 @@ public partial class OptionsInput : IDisposable
 
     public OptionsInput(Options options, Button inputNavBtn)
     {
-        _scene = Game.Scene;
+        _scene = GameFramework.Scene;
         _inputNavBtn = inputNavBtn;
 
         // Cache the content container used for dynamically adding rows.
@@ -85,7 +85,7 @@ public partial class OptionsInput : IDisposable
         StringName action = _btnNewInput.Action;
 
         InputMap.ActionEraseEvent(action, _btnNewInput.InputEvent);
-        Game.Options.GetHotkeys().Actions[action].Remove(_btnNewInput.InputEvent);
+        GameFramework.Options.GetHotkeys().Actions[action].Remove(_btnNewInput.InputEvent);
 
         // Remove the UI button representing that binding and stop listening.
         _btnNewInput.Btn.QueueFree();
@@ -126,7 +126,7 @@ public partial class OptionsInput : IDisposable
     private void ProcessCapturedInput(InputEvent @event)
     {
         _listeningOnPlusBtn = false;
-        Game.FocusOutline.ClearFocus();
+        GameFramework.FocusOutline.ClearFocus();
 
         // Identify the action we are editing.
         StringName action = _btnNewInput.Action;
@@ -168,7 +168,7 @@ public partial class OptionsInput : IDisposable
     private void UpdateOptionStorageAndInputMap(StringName action, InputEvent @event)
     {
         // Load the dictionary of actions from the saved hotkeys options.
-        Dictionary<StringName, Array<InputEvent>> actions = Game.Options.GetHotkeys().Actions;
+        Dictionary<StringName, Array<InputEvent>> actions = GameFramework.Options.GetHotkeys().Actions;
 
         // Remove the previous InputEvent entry for this action in the saved options.
         actions[action].Remove(_btnNewInput.InputEvent);
@@ -187,7 +187,7 @@ public partial class OptionsInput : IDisposable
     private void FocusOnPlusBtn()
     {
         Button plusBtn = _btnNewInput.HBox.GetChild<Button>(_btnNewInput.HBox.GetChildCount() - 1);
-        Game.FocusOutline.Focus(plusBtn);
+        GameFramework.FocusOutline.Focus(plusBtn);
     }
 
     private HotkeyButton CreateButton(StringName action, InputEvent inputEvent, HBoxContainer hbox, bool isFirst)
@@ -304,7 +304,7 @@ public partial class OptionsInput : IDisposable
     private void CreateHotkeys()
     {
         // Iterate actions sorted alphabetically so the UI is deterministic.
-        foreach (StringName action in Game.Options.GetHotkeys().Actions.Keys.OrderBy(x => x.ToString()))
+        foreach (StringName action in GameFramework.Options.GetHotkeys().Actions.Keys.OrderBy(x => x.ToString()))
         {
             string actionStr = action.ToString();
 
@@ -350,7 +350,7 @@ public partial class OptionsInput : IDisposable
     private void AddEventButtonsForAction(StringName action, HBoxContainer hboxEvents)
     {
         // Fetch the saved events for this action from the options.
-        Array<InputEvent> events = Game.Options.GetHotkeys().Actions[action];
+        Array<InputEvent> events = GameFramework.Options.GetHotkeys().Actions[action];
 
         // Create a button for each keyboard and mouse binding.
         for (int i = 0; i < events.Count; i++)
@@ -386,7 +386,7 @@ public partial class OptionsInput : IDisposable
         _btnNewInput = null;
 
         // Reset saved hotkeys to defaults and rebuild the UI.
-        Game.Options.ResetHotkeys();
+        GameFramework.Options.ResetHotkeys();
         CreateHotkeys();
     }
 

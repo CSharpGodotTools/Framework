@@ -29,7 +29,7 @@ public partial class Options : PanelContainer
 
         VisibilityChanged += OnVisibilityChanged;
 
-        Game.Scene.PostSceneChanged += OnPostSceneChanged;
+        GameFramework.Scene.PostSceneChanged += OnPostSceneChanged;
     }
 
     public override void _Input(InputEvent @event)
@@ -47,7 +47,7 @@ public partial class Options : PanelContainer
         _optionsAudio.Dispose();
         _optionsInput.Dispose();
 
-        Game.Scene.PostSceneChanged -= OnPostSceneChanged;
+        GameFramework.Scene.PostSceneChanged -= OnPostSceneChanged;
         VisibilityChanged -= OnVisibilityChanged;
     }
 
@@ -56,7 +56,7 @@ public partial class Options : PanelContainer
     {
         if (Visible)
         {
-            Game.FocusOutline.Focus(_navNode.GetNode<Button>(Game.Options.GetCurrentTab()));
+            GameFramework.FocusOutline.Focus(_navNode.GetNode<Button>(GameFramework.Options.GetCurrentTab()));
         }
     }
 
@@ -64,7 +64,7 @@ public partial class Options : PanelContainer
     {
         if (Visible)
         {
-            _navNode.GetNode<Button>(Game.Options.GetCurrentTab()).GrabFocus();
+            _navNode.GetNode<Button>(GameFramework.Options.GetCurrentTab()).GrabFocus();
         }
     }
 }

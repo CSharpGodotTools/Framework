@@ -115,7 +115,7 @@ public partial class GameConsole : Node
         else
         {
             // Console was closed
-            Game.FocusOutline.ClearFocus();
+            GameFramework.FocusOutline.ClearFocus();
         }
     }
 
@@ -137,7 +137,7 @@ public partial class GameConsole : Node
 
         if (cmdInfo == null)
         {
-            Game.Logger.Log($"The command '{cmd}' does not exist");
+            GameFramework.Logger.Log($"The command '{cmd}' does not exist");
             return false;
         }
 

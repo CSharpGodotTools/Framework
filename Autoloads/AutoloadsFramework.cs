@@ -15,7 +15,7 @@ namespace Framework;
 // Autoload
 // Access the managers that live in here through through Game.(...)
 // Alternatively access through GetNode<Autoloads>("/root/Autoloads")
-public partial class Autoloads : Node
+public partial class AutoloadsFramework : Node
 {
     // Exports
     [Export] private MenuScenes _scenes;
@@ -23,7 +23,7 @@ public partial class Autoloads : Node
     // Events
     public event Func<Task> PreQuit;
 
-    public static Autoloads Instance { get; private set; }
+    public static AutoloadsFramework Instance { get; private set; }
 
     // Autoloads
     // Cannot use [Export] here because Godot will bug out and unlink export path in editor after setup completes and restarts the editor
@@ -46,7 +46,7 @@ public partial class Autoloads : Node
     public override void _EnterTree()
     {
         if (Instance != null)
-            throw new InvalidOperationException($"{nameof(Autoloads)} has been initialized already. Did you try to run the Autoloads scene by itself?");
+            throw new InvalidOperationException($"{nameof(AutoloadsFramework)} has been initialized already. Did you try to run the Autoloads scene by itself?");
 
         Instance = this;
         ComponentManager = GetNode<GameComponentManager>("ComponentManager");

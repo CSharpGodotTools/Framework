@@ -9,7 +9,7 @@ public class Commands
 {
     public static void RegisterAll()
     {
-        GameConsole console = Game.Console;
+        GameConsole console = GameFramework.Console;
         console.RegisterCommand("help", CommandHelp);
         console.RegisterCommand("quit", CommandQuit).WithAliases("exit");
         console.RegisterCommand("debug", CommandDebug);
@@ -17,23 +17,23 @@ public class Commands
 
     private static void CommandHelp(string[] args)
     {
-        IEnumerable<string> cmds = Game.Console.GetCommands().Select(x => x.Name);
-        Game.Logger.Log(cmds.ToFormattedString());
+        IEnumerable<string> cmds = GameFramework.Console.GetCommands().Select(x => x.Name);
+        GameFramework.Logger.Log(cmds.ToFormattedString());
     }
 
     private async static void CommandQuit(string[] args)
     {
-        await Autoloads.Instance.ExitGame();
+        await AutoloadsFramework.Instance.ExitGame();
     }
 
     private static void CommandDebug(string[] args)
     {
         if (args.Length <= 0)
         {
-            Game.Logger.Log("Specify at least one argument");
+            GameFramework.Logger.Log("Specify at least one argument");
             return;
         }
 
-        Game.Logger.Log(args[0]);
+        GameFramework.Logger.Log(args[0]);
     }
 }

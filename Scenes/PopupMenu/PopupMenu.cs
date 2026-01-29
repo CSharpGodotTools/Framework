@@ -35,7 +35,7 @@ public partial class PopupMenu : Control
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
-        Game.Services.Register(this);
+        GameFramework.Services.Register(this);
         InitializeNodes();
         RegisterNodeEvents();
 
@@ -73,7 +73,7 @@ public partial class PopupMenu : Control
     // Initialization Methods
     private void InitializeNodes()
     {
-        _console = Game.Console;
+        _console = GameFramework.Console;
         _nav = GetNode<VBoxContainer>("%Navigation");
         _menu = GetNode<Control>("Menu");
 
@@ -121,7 +121,7 @@ public partial class PopupMenu : Control
         _options.ProcessMode = ProcessModeEnum.Disabled;
         _options.Hide();
         OptionsClosed?.Invoke();
-        Game.FocusOutline.ClearFocus();
+        GameFramework.FocusOutline.ClearFocus();
         FocusResumeBtn();
     }
 
@@ -146,7 +146,7 @@ public partial class PopupMenu : Control
         Visible = false;
         GetTree().Paused = false;
         Closed?.Invoke();
-        Game.FocusOutline.ClearFocus();
+        GameFramework.FocusOutline.ClearFocus();
     }
 
     private void FocusResumeBtn() => _resumeBtn.GrabFocus();
@@ -159,13 +159,13 @@ public partial class PopupMenu : Control
         Hide();
         GetTree().Paused = false;
         Closed?.Invoke();
-        Game.FocusOutline.ClearFocus();
+        GameFramework.FocusOutline.ClearFocus();
     }
 
     private void OnRestartPressed()
     {
         GetTree().Paused = false;
-        Game.Scene.ResetCurrentScene();
+        GameFramework.Scene.ResetCurrentScene();
     }
 
     private void OnOptionsPressed()
@@ -178,11 +178,11 @@ public partial class PopupMenu : Control
     {
         MainMenuBtnPressed?.Invoke();
         GetTree().Paused = false;
-        Game.Scene.SwitchToMainMenu();
+        GameFramework.Scene.SwitchToMainMenu();
     }
 
     private void OnQuitPressed()
     {
-        Autoloads.Instance.ExitGame().FireAndForget();
+        AutoloadsFramework.Instance.ExitGame().FireAndForget();
     }
 }

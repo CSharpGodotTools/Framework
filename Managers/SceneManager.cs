@@ -18,10 +18,10 @@ public class SceneManager
     // Variables
     private MenuScenes _menuScenes;
     private SceneTree _tree;
-    private Autoloads _autoloads;
+    private AutoloadsFramework _autoloads;
     private Node _currentScene;
 
-    public SceneManager(Autoloads autoloads, MenuScenes scenes)
+    public SceneManager(AutoloadsFramework autoloads, MenuScenes scenes)
     {
         SetupFields(autoloads, scenes);
 
@@ -66,7 +66,7 @@ public class SceneManager
         PreSceneChanged?.Invoke();
 
         // Wait for engine to be ready before switching scenes
-        _autoloads.CallDeferred(nameof(Autoloads.DeferredSwitchSceneProxy), sceneFilePath, Variant.From(TransType.None));
+        _autoloads.CallDeferred(nameof(AutoloadsFramework.DeferredSwitchSceneProxy), sceneFilePath, Variant.From(TransType.None));
     }
 
     public void DeferredSwitchScene(string rawName, Variant transTypeVariant)
@@ -98,11 +98,11 @@ public class SceneManager
         }
 
         PostSceneChanged?.Invoke();
-        Game.FocusOutline.ClearFocus();
+        GameFramework.FocusOutline.ClearFocus();
     }
 
     // Private Methods
-    private void SetupFields(Autoloads autoloads, MenuScenes scenes)
+    private void SetupFields(AutoloadsFramework autoloads, MenuScenes scenes)
     {
         _autoloads = autoloads;
         _menuScenes = scenes;
@@ -113,12 +113,12 @@ public class SceneManager
         _currentScene = root.GetChild(root.GetChildCount() - 1);
     }
 
-    private void OnPreSceneChanged() => Game.Audio.FadeOutSFX();
+    private void OnPreSceneChanged() => GameFramework.Audio.FadeOutSFX();
 
     private void ChangeScene(string scenePath, TransType transType)
     {
         // Wait for engine to be ready before switching scenes
-        _autoloads.CallDeferred(nameof(Autoloads.DeferredSwitchSceneProxy), scenePath, Variant.From(transType));
+        _autoloads.CallDeferred(nameof(AutoloadsFramework.DeferredSwitchSceneProxy), scenePath, Variant.From(transType));
     }
 
     private void FadeTo(TransColor transColor, double duration, Action finished = null)

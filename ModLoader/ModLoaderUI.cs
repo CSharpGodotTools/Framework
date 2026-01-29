@@ -27,7 +27,7 @@ public class ModLoaderUI
 
         if (dir == null)
         {
-            Game.Logger.LogWarning("Failed to open Mods directory has it does not exist");
+            GameFramework.Logger.LogWarning("Failed to open Mods directory has it does not exist");
             return;
         }
 
@@ -52,7 +52,7 @@ public class ModLoaderUI
 
             if (!File.Exists(modJson))
             {
-                Game.Logger.LogWarning($"The mod folder '{filename}' does not have a mod.json so it will not be loaded");
+                GameFramework.Logger.LogWarning($"The mod folder '{filename}' does not have a mod.json so it will not be loaded");
                 goto Next;
             }
 
@@ -64,7 +64,7 @@ public class ModLoaderUI
 
             if (_mods.ContainsKey(modInfo.Id))
             {
-                Game.Logger.LogWarning($"Duplicate mod id '{modInfo.Id}' was skipped");
+                GameFramework.Logger.LogWarning($"Duplicate mod id '{modInfo.Id}' was skipped");
                 goto Next;
             }
 
@@ -89,7 +89,7 @@ public class ModLoaderUI
 
                 if (!success)
                 {
-                    Game.Logger.LogWarning($"Failed to load pck file for mod '{modInfo.Name}'");
+                    GameFramework.Logger.LogWarning($"Failed to load pck file for mod '{modInfo.Name}'");
                     goto Next;
                 }
 
@@ -99,7 +99,7 @@ public class ModLoaderUI
 
                 if (importedScene == null)
                 {
-                    Game.Logger.LogWarning($"Failed to load mod.tscn for mod '{modInfo.Name}'");
+                    GameFramework.Logger.LogWarning($"Failed to load mod.tscn for mod '{modInfo.Name}'");
                     goto Next;
                 }
 
