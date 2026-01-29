@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace __TEMPLATE__.UI.Console;
+namespace Framework.UI.Console;
 
 public partial class GameConsole : Node
 {

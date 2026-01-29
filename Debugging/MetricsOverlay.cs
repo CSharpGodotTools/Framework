@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using Monitor = Godot.Performance.Monitor;
 using Vector2 = System.Numerics.Vector2;
 
-namespace __TEMPLATE__.Debugging;
+namespace Framework.Debugging;
 
 public class MetricsOverlay
 {

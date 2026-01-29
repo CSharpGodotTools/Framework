@@ -1,4 +1,4 @@
-﻿namespace __TEMPLATE__;
+﻿namespace Framework;
 
 // Add references to managers here. For example:
 // public static WorldManager World => Autoloads.Instance.WorldManager;

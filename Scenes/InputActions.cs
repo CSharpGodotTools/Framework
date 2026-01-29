@@ -1,6 +1,6 @@
 using Godot;
 
-namespace __TEMPLATE__;
+namespace Framework;
 
 [InputMap]
 public static partial class InputActions

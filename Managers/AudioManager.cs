@@ -2,7 +2,7 @@ using Godot;
 using GodotUtils;
 using System;
 
-namespace __TEMPLATE__;
+namespace Framework;
 
 public class AudioManager : IDisposable
 {

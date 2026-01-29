@@ -1,11 +1,11 @@
-using __TEMPLATE__.UI;
+using Framework.UI;
 using GodotUtils;
-using QualityP = __TEMPLATE__.UI.QualityPreset;
+using QualityP = Framework.UI.QualityPreset;
 using VSyncMode = Godot.DisplayServer.VSyncMode;
 
 // This was intentionally set to GodotUtils instead of __TEMPLATE__ as GodotUtils relies on MainMenuBtnPressed
-// and GodotUtils should NOT have any trace of using __TEMPLATE__.
-namespace __TEMPLATE__;
+// and GodotUtils should NOT have any trace of using Framework.
+namespace Framework;
 
 public class ResourceOptions
 {

@@ -1,7 +1,7 @@
 using Godot;
 using GodotUtils;
 
-namespace __TEMPLATE__;
+namespace Framework;
 
 public partial class GameComponentManager : Node
 {

@@ -1,9 +1,9 @@
-﻿using __TEMPLATE__.Debugging;
-using __TEMPLATE__.UI;
-using __TEMPLATE__.UI.Console;
+﻿using Framework.Debugging;
+using Framework.UI;
+using Framework.UI.Console;
 using System;
 
-namespace __TEMPLATE__;
+namespace Framework;
 
 public static partial class Game
 {

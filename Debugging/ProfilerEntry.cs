@@ -1,6 +1,6 @@
 using Godot;
 
-namespace __TEMPLATE__.Debugging;
+namespace Framework.Debugging;
 
 public class ProfilerEntry
 {

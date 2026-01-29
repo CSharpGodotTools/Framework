@@ -2,7 +2,7 @@ using Godot;
 using GodotUtils;
 using System;
 
-namespace __TEMPLATE__.UI;
+namespace Framework.UI;
 
 public partial class Credits : Node
 {

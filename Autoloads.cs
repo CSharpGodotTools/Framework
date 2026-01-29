@@ -1,4 +1,4 @@
-namespace __TEMPLATE__;
+namespace Framework;
 
 // Define managers here. For example:
 // public WorldManager WorldManager { get; private set; }

@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
 
-namespace __TEMPLATE__.UI;
+namespace Framework.UI;
 
 public class ModLoaderUI
 {

@@ -1,6 +1,6 @@
-using __TEMPLATE__.Debugging;
-using __TEMPLATE__.UI;
-using __TEMPLATE__.UI.Console;
+using Framework.Debugging;
+using Framework.UI;
+using Framework.UI.Console;
 using Godot;
 using GodotUtils;
 using System;
@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using GodotUtils.Debugging;
 #endif
 
-namespace __TEMPLATE__;
+namespace Framework;
 
 // Autoload
 // Access the managers that live in here through through Game.(...)

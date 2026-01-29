@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using FileAccess = Godot.FileAccess;
 
-namespace __TEMPLATE__.UI;
+namespace Framework.UI;
 
 // Autoload
 public partial class OptionsManager : IDisposable

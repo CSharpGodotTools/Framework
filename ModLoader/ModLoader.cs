@@ -3,7 +3,7 @@ using GodotUtils;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace __TEMPLATE__.UI;
+namespace Framework.UI;
 
 public partial class ModLoader : Node
 {

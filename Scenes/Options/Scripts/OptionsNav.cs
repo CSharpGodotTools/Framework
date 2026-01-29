@@ -3,7 +3,7 @@ using GodotUtils;
 using System;
 using System.Collections.Generic;
 
-namespace __TEMPLATE__.UI;
+namespace Framework.UI;
 
 public class OptionsNav : IDisposable
 {
