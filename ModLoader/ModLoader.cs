@@ -89,7 +89,7 @@ public partial class ModLoader : Node
     {
         //OS.CreateProcess(OS.GetExecutablePath(), null);
         OS.CreateInstance(null);
-        await AutoloadsFramework.Instance.ExitGame();
+        await Autoloads.Instance.ExitGame();
     }
 
     private static void _OnOpenModsFolderPressed()

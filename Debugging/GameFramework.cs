@@ -13,9 +13,9 @@ public partial class GameFramework
     /// that the developer cannot access the autoloads singleton just yet and it needs time to
     /// setup.
     /// </summary>
-    private static T IsAutoloadsSetup<T>(Func<AutoloadsFramework, T> getPropertyFrom, string propertyName) where T : class
+    private static T IsAutoloadsSetup<T>(Func<Autoloads, T> getPropertyFrom, string propertyName) where T : class
     {
-        AutoloadsFramework autoloads = AutoloadsFramework.Instance;
+        Autoloads autoloads = Autoloads.Instance;
 
         if (autoloads == null)
         {

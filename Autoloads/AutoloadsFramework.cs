@@ -15,15 +15,13 @@ namespace Framework;
 // Autoload
 // Access the managers that live in here through through Game.(...)
 // Alternatively access through GetNode<Autoloads>("/root/Autoloads")
-public partial class AutoloadsFramework : Node
+public abstract partial class AutoloadsFramework : Node
 {
     // Exports
     [Export] private MenuScenes _scenes;
 
     // Events
     public event Func<Task> PreQuit;
-
-    public static AutoloadsFramework Instance { get; private set; }
 
     // Autoloads
     // Cannot use [Export] here because Godot will bug out and unlink export path in editor after setup completes and restarts the editor
@@ -42,13 +40,16 @@ public partial class AutoloadsFramework : Node
     private VisualizeAutoload _visualizeAutoload;
 #endif
 
-    // Godot Overrides
-    public override void _EnterTree()
-    {
-        if (Instance != null)
-            throw new InvalidOperationException($"{nameof(AutoloadsFramework)} has been initialized already. Did you try to run the Autoloads scene by itself?");
+    protected abstract void EnterTree();
+    protected abstract void Ready();
+    protected abstract void Process(double delta);
+    protected abstract void PhysicsProcess(double delta);
+    protected abstract void Notification(int what);
+    protected abstract void ExitTree();
 
-        Instance = this;
+    // Godot Overrides
+    public sealed override void _EnterTree()
+    {
         ComponentManager = GetNode<GameComponentManager>("ComponentManager");
         SceneManager = new SceneManager(this, _scenes);
         Services = new Services(this);
@@ -57,9 +58,11 @@ public partial class AutoloadsFramework : Node
         GameConsole = GetNode<GameConsole>("%Console");
         FocusOutline = new FocusOutlineManager(this);
         Logger = new Logger(GameConsole);
+
+        EnterTree();
     }
 
-    public override void _Ready()
+    public sealed override void _Ready()
     {
         CommandLineArgs.Initialize();
         Commands.RegisterAll();
@@ -70,9 +73,11 @@ public partial class AutoloadsFramework : Node
 #if DEBUG
         _visualizeAutoload = new VisualizeAutoload();
 #endif
+
+        Ready();
     }
 
-    public override void _Process(double delta)
+    public sealed override void _Process(double delta)
     {
         OptionsManager.Update();
         MetricsOverlay.Update();
@@ -82,17 +87,26 @@ public partial class AutoloadsFramework : Node
 #endif
 
         Logger.Update();
+
+        Process(delta);
     }
 
-    public override void _Notification(int what)
+    public sealed override void _PhysicsProcess(double delta)
+    {
+        PhysicsProcess(delta);
+    }
+
+    public sealed override void _Notification(int what)
     {
         if (what == NotificationWMCloseRequest)
         {
             ExitGame().FireAndForget();
         }
+
+        Notification(what);
     }
 
-    public override void _ExitTree()
+    public sealed override void _ExitTree()
     {
         AudioManager.Dispose();
         OptionsManager.Dispose();
@@ -105,7 +119,7 @@ public partial class AutoloadsFramework : Node
         Logger.Dispose();
         Profiler.Dispose();
 
-        Instance = null;
+        ExitTree();
     }
 
     // Special Proxy Method for Usage of Deferred
