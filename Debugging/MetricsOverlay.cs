@@ -25,7 +25,6 @@ public class MetricsOverlay
     // Variables
     // This was made static to allow tracking variables even before metrics overlay instance gets initialized
     private Dictionary<string, Func<object>> _processMonitors = [];
-    private Dictionary<string, Func<object>> _physicsProcessMonitors = [];
     private Dictionary<string, Func<string>> _currentMetrics = [];
 
     private float[] _fpsBuffer = new float[MaxFpsBuffer];
@@ -83,35 +82,23 @@ public class MetricsOverlay
     }
 
     // API
-    public void StartMonitoringProcess(string key, Func<object> function)
+    public void StartMonitoring(string key, Func<object> function)
     {
         _visible = true;
         _processMonitors.Add(key, function);
     }
 
-    public void StopMonitoringProcess(string key)
+    public void StopMonitoring(string key)
     {
         _processMonitors.Remove(key);
-    }
-
-    public void StartMonitoringPhysicsProcess(string key, Func<object> function)
-    {
-        _visible = true;
-        _physicsProcessMonitors.Add(key, function);
-    }
-
-    public void StopMonitoringPhysicsProcess(string key)
-    {
-        _physicsProcessMonitors.Remove(key);
     }
 
     // Private Methods
     private void RenderProcessMonitors()
     {
         int processMonitors = _processMonitors.Count;
-        int physicsProcessMonitors = _physicsProcessMonitors.Count;
 
-        if (processMonitors == 0 && physicsProcessMonitors == 0)
+        if (processMonitors == 0)
             return;
 
         if (!ImGui.CollapsingHeader(LabelVariables, ImGuiTreeNodeFlags.DefaultOpen))
@@ -120,14 +107,6 @@ public class MetricsOverlay
         if (processMonitors > 0)
         {
             foreach (KeyValuePair<string, Func<object>> kvp in _processMonitors)
-            {
-                ImGui.Text($"{kvp.Key}: {kvp.Value()}");
-            }
-        }
-
-        if (physicsProcessMonitors > 0)
-        {
-            foreach (KeyValuePair<string, Func<object>> kvp in _physicsProcessMonitors)
             {
                 ImGui.Text($"{kvp.Key}: {kvp.Value()}");
             }
