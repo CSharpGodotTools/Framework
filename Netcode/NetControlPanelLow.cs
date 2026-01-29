@@ -1,7 +1,8 @@
 using Godot;
-using GodotUtils.Netcode.Client;
-using GodotUtils.Netcode.Server;
+using Framework.Netcode.Client;
+using Framework.Netcode.Server;
 using System;
+using GodotUtils;
 
 namespace Framework.Netcode;
 

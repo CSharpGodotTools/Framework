@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
-using GodotUtils.Netcode.Client;
-using GodotUtils.Netcode.Server;
+using Framework.Netcode.Client;
+using Framework.Netcode.Server;
 
 namespace Framework.Netcode;
 
@@ -34,8 +34,8 @@ public class Net
             _enetInitialized = false;
         }
 
-        AutoloadsFramework.Instance.PreQuit += StopThreads;
-        // TODO: GameFramework.Services.Get<UI.PopupMenu>().MainMenuBtnPressed += async () => await StopThreads();
+        Autoloads.Instance.PreQuit += StopThreads;
+        GameFramework.Services.Get<UI.PopupMenu>().MainMenuBtnPressed += async () => await StopThreads();
 
         _clientFactory = clientFactory;
         _serverFactory = serverFactory;

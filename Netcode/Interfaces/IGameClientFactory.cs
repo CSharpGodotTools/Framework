@@ -1,4 +1,4 @@
-using GodotUtils.Netcode.Client;
+using Framework.Netcode.Client;
 
 namespace Framework.Netcode;
 

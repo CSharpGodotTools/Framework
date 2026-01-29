@@ -1,5 +1,5 @@
 using ENet;
-using GodotUtils.Netcode.Server;
+using Framework.Netcode.Server;
 
 namespace Framework.Netcode.Sandbox.Topdown;
 
