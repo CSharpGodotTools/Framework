@@ -82,18 +82,6 @@ public class MetricsOverlay
         }
     }
 
-    public void UpdatePhysics()
-    {
-        if (_visible)
-        {
-            // ImGui can ONLY be called from _Process, NOT _PhysicsProcess
-            foreach (KeyValuePair<string, Func<object>> kvp in _physicsProcessMonitors)
-            {
-                _physicsProcessMonitors[kvp.Key] = kvp.Value;
-            }
-        }
-    }
-
     // API
     public void StartMonitoringProcess(string key, Func<object> function)
     {

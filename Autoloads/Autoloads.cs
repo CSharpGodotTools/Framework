@@ -84,11 +84,6 @@ public partial class Autoloads : Node
         Logger.Update();
     }
 
-    public override void _PhysicsProcess(double delta)
-    {
-        MetricsOverlay.UpdatePhysics();
-    }
-
     public override void _Notification(int what)
     {
         if (what == NotificationWMCloseRequest)
