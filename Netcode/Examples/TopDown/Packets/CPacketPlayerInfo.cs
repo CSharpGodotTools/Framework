@@ -12,7 +12,7 @@ public class CPacketPlayerInfo : ClientPacket
     [NetSend(2)]
     public Vector2 Position { get; set; }
 
-    public override void Handle(ENetServer server, Peer client)
+    public override void OnServerReceived(ENetServer server, Peer client)
     {
     }
 }

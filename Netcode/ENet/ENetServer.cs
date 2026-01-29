@@ -210,7 +210,7 @@ public abstract class ENetServer : ENetLow
                     continue;
                 }
 
-                handler.Handle(this, packetPeer.peer);
+                handler.OnServerReceived(this, packetPeer.peer);
                 LogPacketReceived(type, packetPeer.peer.ID, handler);
             }
             finally

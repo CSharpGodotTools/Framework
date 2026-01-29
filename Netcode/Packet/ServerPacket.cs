@@ -59,7 +59,7 @@ public abstract class ServerPacket : GamePacket
     /// <summary>
     /// The packet handled client-side (Godot thread)
     /// </summary>
-    public abstract void Handle(ENetClient client);
+    public abstract void OnClientReceived(ENetClient client);
 }
 
 public enum SendType

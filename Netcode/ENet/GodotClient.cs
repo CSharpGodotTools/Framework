@@ -109,7 +109,7 @@ public abstract class GodotClient : ENetClient
             handlePacket.Read(packetReader);
             packetReader.Dispose();
 
-            handlePacket.Handle(this);
+            handlePacket.OnClientReceived(this);
 
             LogReceivedPacket(type, handlePacket);
         }
