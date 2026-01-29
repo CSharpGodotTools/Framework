@@ -43,7 +43,6 @@ public abstract class GodotClient : ENetClient
         Options = options;
 
         Log("Client is starting");
-        OnStarting();
         InitIgnoredPackets(ignoredPackets);
 
         _running = 1;
@@ -62,7 +61,7 @@ public abstract class GodotClient : ENetClient
     /// <summary>
     /// Stop the client. This function is thread safe.
     /// </summary>
-    public override void Stop()
+    public sealed override void Stop()
     {
         if (_running == 0)
         {

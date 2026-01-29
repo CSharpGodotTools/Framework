@@ -14,9 +14,4 @@ public partial class GameServer : GodotServer
     {
         
     }
-
-    protected override void OnStopped()
-    {
-        
-    }
 }

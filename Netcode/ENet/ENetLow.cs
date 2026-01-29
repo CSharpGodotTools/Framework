@@ -60,16 +60,16 @@ public abstract class ENetLow
                         // do nothing
                         break;
                     case EventType.Connect:
-                        OnConnect(netEvent);
+                        OnConnectLow(netEvent);
                         break;
                     case EventType.Disconnect:
-                        OnDisconnect(netEvent);
+                        OnDisconnectLow(netEvent);
                         break;
                     case EventType.Timeout:
-                        OnTimeout(netEvent);
+                        OnTimeoutLow(netEvent);
                         break;
                     case EventType.Receive:
-                        OnReceive(netEvent);
+                        OnReceiveLow(netEvent);
                         break;
                 }
             }
@@ -77,22 +77,18 @@ public abstract class ENetLow
 
         Host.Flush();
         _running = 0;
-        OnStopped();
     }
 
     protected abstract void ConcurrentQueues();
-    protected virtual void OnStopped() { }
-    protected virtual void OnStarting() { }
-    protected abstract void OnConnect(Event netEvent);
-    protected abstract void OnDisconnect(Event netEvent);
-    protected abstract void OnTimeout(Event netEvent);
-    protected abstract void OnReceive(Event netEvent);
+    protected abstract void OnConnectLow(Event netEvent);
+    protected abstract void OnDisconnectLow(Event netEvent);
+    protected abstract void OnTimeoutLow(Event netEvent);
+    protected abstract void OnReceiveLow(Event netEvent);
 
     /// <summary>
-    /// A simple function that transforms the number of bytes into a readable string. For
-    /// example if bytes is 1 then "1 byte" is returned. If bytes is 2 then "2 bytes" is 
-    /// returned. A empty string is returned if printing the packet size is disabled in
-    /// options.
+    /// Formats the number of bytes into a readable string. For example if <paramref name="bytes"/>
+    /// is 1 then "1 byte" is returned. If <paramref name="bytes"/> is 2 then "2 bytes" is returned.
+    /// An empty string is returned if printing the packet size is disabled in the options.
     /// </summary>
     protected string FormatByteSize(long bytes)
     {

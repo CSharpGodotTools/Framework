@@ -28,26 +28,31 @@ public abstract class ENetClient : ENetLow
     /// <summary>
     /// Log messages as the client. Thread safe.
     /// </summary>
-    public override void Log(object message, BBColor color = BBColor.Aqua)
+    public sealed override void Log(object message, BBColor color = BBColor.Aqua)
     {
         GameFramework.Logger.Log($"[Client] {message}", color);
     }
 
-    protected override void ConcurrentQueues()
+    protected sealed override void ConcurrentQueues()
     {
         ProcessENetCommands();
         ProcessIncomingPackets();
         ProcessOutgoingPackets();
     }
 
-    protected override void OnConnect(Event netEvent)
+    protected virtual void OnConnect(Event netEvent) { }
+    protected virtual void OnDisconnect(Event netEvent) { }
+    protected virtual void OnTimeout(Event netEvent) { }
+
+    protected sealed override void OnConnectLow(Event netEvent)
     {
         _connected = 1;
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Connected));
         Log("Client connected to server");
+        OnConnect(netEvent);
     }
 
-    protected override void OnDisconnect(Event netEvent)
+    protected sealed override void OnDisconnectLow(Event netEvent)
     {
         DisconnectOpcode opcode = (DisconnectOpcode)netEvent.Data;
         
@@ -56,9 +61,10 @@ public abstract class ENetClient : ENetLow
         OnDisconnectCleanup(_peer);
 
         Log($"Received disconnect opcode from server: {opcode.ToString().ToLower()}");
+        OnDisconnect(netEvent);
     }
 
-    protected override void OnTimeout(Event netEvent)
+    protected sealed override void OnTimeoutLow(Event netEvent)
     {
         // I do not remember why I enqueued both a Timeout AND a Disconnected Godot cmds
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Disconnected, DisconnectOpcode.Timeout));
@@ -66,9 +72,10 @@ public abstract class ENetClient : ENetLow
 
         OnDisconnectCleanup(_peer);
         Log("Client connection timeout");
+        OnTimeout(netEvent);
     }
 
-    protected override void OnReceive(Event netEvent)
+    protected sealed override void OnReceiveLow(Event netEvent)
     {
         Packet packet = netEvent.Packet;
         if (packet.Length > GamePacket.MaxSize)
@@ -82,7 +89,7 @@ public abstract class ENetClient : ENetLow
         _incoming.Enqueue(packet);
     }
 
-    protected override void OnDisconnectCleanup(Peer peer)
+    protected sealed override void OnDisconnectCleanup(Peer peer)
     {
         base.OnDisconnectCleanup(peer);
         _connected = 0;

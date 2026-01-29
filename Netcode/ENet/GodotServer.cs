@@ -37,8 +37,6 @@ public abstract class GodotServer : ENetServer
         _running = 1;
         CTS = new CancellationTokenSource();
 
-        OnStarting();
-
         try
         {
             await Task.Run(() => WorkerThread(port, maxClients), CTS.Token);
@@ -76,7 +74,7 @@ public abstract class GodotServer : ENetServer
     /// <summary>
     /// Stop the server. Thread safe.
     /// </summary>
-    public override void Stop()
+    public sealed override void Stop()
     {
         if (_running == 0)
         {

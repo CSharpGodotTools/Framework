@@ -24,7 +24,7 @@ public abstract class ENetServer : ENetLow
     /// <summary>
     /// Log a message as the server. This function is thread safe.
     /// </summary>
-    public override void Log(object message, BBColor color = BBColor.Green)
+    public sealed override void Log(object message, BBColor color = BBColor.Green)
     {
         GameFramework.Logger.Log($"[Server] {message}", color);
     }
@@ -44,14 +44,14 @@ public abstract class ENetServer : ENetLow
         _outgoing.Enqueue(packet);
     }
 
-    protected override void ConcurrentQueues()
+    protected sealed override void ConcurrentQueues()
     {
         ProcessEnetCommands();
         ProcessIncomingPackets();
         ProcessOutgoingPackets();
     }
 
-    protected override void OnConnect(Event netEvent)
+    protected sealed override void OnConnectLow(Event netEvent)
     {
         _peers[netEvent.Peer.ID] = netEvent.Peer;
         Log("Client connected - ID: " + netEvent.Peer.ID);
@@ -59,21 +59,21 @@ public abstract class ENetServer : ENetLow
 
     protected abstract void OnDisconnected(Event netEvent);
 
-    protected override void OnDisconnect(Event netEvent)
+    protected sealed override void OnDisconnectLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client disconnected - ID: " + netEvent.Peer.ID);
         OnDisconnected(netEvent);
     }
 
-    protected override void OnTimeout(Event netEvent)
+    protected sealed override void OnTimeoutLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client timeout - ID: " + netEvent.Peer.ID);
         OnDisconnected(netEvent);
     }
 
-    protected override void OnReceive(Event netEvent)
+    protected sealed override void OnReceiveLow(Event netEvent)
     {
         Packet packet = netEvent.Packet;
 
@@ -108,7 +108,7 @@ public abstract class ENetServer : ENetLow
         Log("Server has stopped");
     }
 
-    protected override void OnDisconnectCleanup(Peer peer)
+    protected sealed override void OnDisconnectCleanup(Peer peer)
     {
         base.OnDisconnectCleanup(peer);
         _peers.Remove(peer.ID);
