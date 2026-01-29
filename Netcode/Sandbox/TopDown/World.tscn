@@ -1,18 +1,16 @@
-[gd_scene load_steps=3 format=3 uid="uid://btwdcgmbvwyid"]
+[gd_scene format=3 uid="uid://btwdcgmbvwyid"]
 
-[ext_resource type="Script" uid="uid://bvuoljdc6j7td" path="res://Framework/GodotUtils/Netcode/Sandbox/TopDown/NetControlPanel.cs" id="1_8p5wx"]
+[ext_resource type="Script" uid="uid://couxv6kqigkv1" path="res://Framework/Netcode/Sandbox/TopDown/NetControlPanel.cs" id="1_8p5wx"]
 [ext_resource type="PackedScene" uid="uid://c6pism2kgjr5c" path="res://Framework/Scenes/PopupMenu/PopupMenu.tscn" id="2_pk5r8"]
 
+[node name="World" type="Node2D" unique_id=131430110]
 
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1905248894]
 
-[node name="World" type="Node2D"]
-
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
-
-[node name="PopupMenu" parent="CanvasLayer" instance=ExtResource("2_pk5r8")]
+[node name="PopupMenu" parent="CanvasLayer" unique_id=261176281 instance=ExtResource("2_pk5r8")]
 visible = false
 
-[node name="Multiplayer" type="PanelContainer" parent="CanvasLayer" node_paths=PackedStringArray("_usernameLineEdit", "_ipLineEdit", "_startServerBtn", "_stopServerBtn", "_startClientBtn", "_stopClientBtn")]
+[node name="Multiplayer" type="PanelContainer" parent="CanvasLayer" unique_id=1999482086 node_paths=PackedStringArray("_usernameLineEdit", "_ipLineEdit", "_startServerBtn", "_stopServerBtn", "_startClientBtn", "_stopClientBtn")]
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("1_8p5wx")
@@ -23,58 +21,58 @@ _stopServerBtn = NodePath("MarginContainer/HBoxContainer/GridContainer/Stop Serv
 _startClientBtn = NodePath("MarginContainer/HBoxContainer/GridContainer/Start Client")
 _stopClientBtn = NodePath("MarginContainer/HBoxContainer/GridContainer/Stop Client")
 
-[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Multiplayer"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/Multiplayer" unique_id=244607393]
 layout_mode = 2
 theme_override_constants/margin_left = 5
 theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 5
 theme_override_constants/margin_bottom = 5
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Multiplayer/MarginContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Multiplayer/MarginContainer" unique_id=919428670]
 layout_mode = 2
 
-[node name="GridContainer" type="GridContainer" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer"]
+[node name="GridContainer" type="GridContainer" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer" unique_id=1387968992]
 layout_mode = 2
 columns = 2
 
-[node name="Start Server" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer"]
+[node name="Start Server" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer" unique_id=1608191310]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 text = "Start Server"
 
-[node name="Stop Server" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer"]
+[node name="Stop Server" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer" unique_id=75409957]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 text = "Stop Server"
 
-[node name="Start Client" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer"]
+[node name="Start Client" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer" unique_id=682564986]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 text = "Start Client"
 
-[node name="Stop Client" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer"]
+[node name="Stop Client" type="Button" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/GridContainer" unique_id=1846380680]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 text = "Stop Client"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer" unique_id=245320220]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 
-[node name="Ip" type="LineEdit" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/VBoxContainer"]
+[node name="Ip" type="LineEdit" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/VBoxContainer" unique_id=957380832]
 unique_name_in_owner = true
 layout_mode = 2
 text = "127.0.0.1"
 
-[node name="Username" type="LineEdit" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/VBoxContainer"]
+[node name="Username" type="LineEdit" parent="CanvasLayer/Multiplayer/MarginContainer/HBoxContainer/VBoxContainer" unique_id=772111126]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Valk"

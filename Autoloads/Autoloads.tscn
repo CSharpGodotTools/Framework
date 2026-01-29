@@ -10,7 +10,6 @@
 [ext_resource type="Script" uid="uid://du8dqqccpsvrf" path="res://Framework/Managers/GameComponentManager.cs" id="7_3cpyl"]
 [ext_resource type="Texture2D" uid="uid://d3di84q21vp35" path="res://Framework/Theme/CornerDashOutline.png" id="9_3cpyl"]
 
-
 [sub_resource type="Resource" id="Resource_yre3b"]
 script = ExtResource("6_dq8n5")
 MainMenu = ExtResource("3_supaa")
