@@ -8,21 +8,18 @@ namespace __TEMPLATE__;
 // About Scene Switching: https://docs.godotengine.org/en/latest/tutorials/scripting/singletons_autoload.html
 public class SceneManager
 {
-    #region Events
+    // Events
     public event Action PreSceneChanged;
     public event Action PostSceneChanged;
-    #endregion
 
-    #region Config
+    // Config
     public const int DefaultSceneFadeDuration = 2;
-    #endregion
 
-    #region Variables
+    // Variables
     private MenuScenes _menuScenes;
     private SceneTree _tree;
     private Autoloads _autoloads;
     private Node _currentScene;
-    #endregion
 
     public SceneManager(Autoloads autoloads, MenuScenes scenes)
     {
@@ -32,7 +29,7 @@ public class SceneManager
         PreSceneChanged += OnPreSceneChanged;
     }
 
-    #region API
+    // API
     public Node CurrentScene => _currentScene;
     public void SwitchToOptions(TransType transType = TransType.None) => SwitchTo(_menuScenes.Options, transType);
     public void SwitchToMainMenu(TransType transType = TransType.None) => SwitchTo(_menuScenes.MainMenu, transType);
@@ -103,9 +100,8 @@ public class SceneManager
         PostSceneChanged?.Invoke();
         Game.FocusOutline.ClearFocus();
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     private void SetupFields(Autoloads autoloads, MenuScenes scenes)
     {
         _autoloads = autoloads;
@@ -155,14 +151,13 @@ public class SceneManager
                 finished?.Invoke();
             });
     }
-    #endregion
 
     public void Dispose()
     {
         PreSceneChanged -= OnPreSceneChanged;
     }
 
-    #region Types
+    // Enums
     public enum TransType
     {
         None,
@@ -174,5 +169,4 @@ public class SceneManager
         Black,
         Transparent
     }
-    #endregion
 }

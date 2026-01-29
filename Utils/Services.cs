@@ -17,7 +17,7 @@ public class Services(Autoloads autoloads)
     private Dictionary<Type, Service> _services = [];
     private SceneManager _sceneManager = autoloads.SceneManager;
 
-    #region API
+    // API
     /// <summary>
     /// Retrieves a service of the specified type.
     /// </summary>
@@ -52,9 +52,8 @@ public class Services(Autoloads autoloads)
         //GD.Print($"Registering service: {node.GetType().Name}");
         AddService(node);
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     /// <summary>
     /// Adds a service to the service provider.
     /// </summary>
@@ -92,7 +91,6 @@ public class Services(Autoloads autoloads)
             }
         }
     }
-    #endregion
 
     /// <summary>
     /// A formatted string of the all the services.

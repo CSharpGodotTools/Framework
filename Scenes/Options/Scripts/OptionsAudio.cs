@@ -5,11 +5,10 @@ namespace __TEMPLATE__.UI;
 
 public partial class OptionsAudio : IDisposable
 {
-    #region Fields
+    // Fields
     private ResourceOptions _options;
     private readonly HSlider _musicSlider;
     private readonly HSlider _sfxSlider;
-    #endregion
 
     public OptionsAudio(Options options)
     {

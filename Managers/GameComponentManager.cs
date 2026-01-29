@@ -7,7 +7,7 @@ public partial class GameComponentManager : Node
 {
     private ComponentManager _componentManager;
 
-    #region Godot Overrides
+    // Godot Overrides
     public override void _EnterTree()
     {
         _componentManager = new ComponentManager(this);
@@ -38,5 +38,4 @@ public partial class GameComponentManager : Node
     {
         _componentManager.UnhandledInput(@event);
     }
-    #endregion
 }

@@ -6,12 +6,11 @@ namespace __TEMPLATE__.Debugging;
 
 public class Profiler
 {
-    #region Variables
+    // Variables
     private Dictionary<string, ProfilerEntry> _entries = [];
     private const int DefaultAccuracy = 2;
-    #endregion
 
-    #region API
+    // API
     public void Start(string key)
     {
         if (!_entries.TryGetValue(key, out ProfilerEntry entry))
@@ -53,9 +52,8 @@ public class Profiler
     {
         _entries[key].Stop();
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     private void StartMonitor(string key, int accuracy, Action<string, Func<object>> registerAction)
     {
         if (!_entries.TryGetValue(key, out ProfilerEntry entry))
@@ -69,8 +67,8 @@ public class Profiler
 
         entry.Start();
     }
-    #endregion
 
+    // Dispose
     public void Dispose()
     {
         _entries = null;

@@ -6,17 +6,15 @@ namespace __TEMPLATE__.UI;
 
 public class OptionsGameplay : IDisposable
 {
-    #region Events
+    // Events
     public event Action<float> OnMouseSensitivityChanged;
-    #endregion
 
-    #region Fields
+    // Fields
     private ResourceOptions _options;
     private Button _gameplayBtn;
     private readonly Options options;
     private readonly OptionButton _difficultyBtn;
     private readonly HSlider _sensitivitySlider;
-    #endregion
 
     public OptionsGameplay(Options options, Button gameplayButton)
     {

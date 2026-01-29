@@ -6,7 +6,7 @@ namespace __TEMPLATE__.UI;
 
 public partial class Credits : Node
 {
-    #region Constants
+    // Constants
     private const string HeaderOneIdentifier = "[h1]";
     private const string HeaderTwoIdentifier = "[h2]";
     private const string LinkIdentifier = "http";
@@ -23,9 +23,8 @@ public partial class Credits : Node
     private const int HeaderOneSize = 32;
     private const int HeaderTwoSize = 24;
     private const int NumSpeedSettings = 3;
-    #endregion
 
-    #region Fields
+    // Fields
     private VBoxContainer _credits;
     private SceneManager _scene;
     private Vector2 _startingCreditsPosition;
@@ -36,9 +35,8 @@ public partial class Credits : Node
     private bool _paused;
     private byte _curSpeedSetting = 1;
     private int _direction = 1;
-    #endregion
 
-    #region Godot Overrides
+    // Godot Overrides
     public override void _Ready()
     {
         SetupFields();
@@ -72,9 +70,8 @@ public partial class Credits : Node
                 _scene.SwitchToMainMenu();
         }
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     private void SetupFields()
     {
         _scene = Game.Scene;
@@ -237,5 +234,4 @@ public partial class Credits : Node
 
         return hbox;
     }
-    #endregion
 }

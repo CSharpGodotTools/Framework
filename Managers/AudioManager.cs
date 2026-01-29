@@ -6,21 +6,19 @@ namespace __TEMPLATE__;
 
 public class AudioManager : IDisposable
 {
-    #region Config
+    // Config
     private const float MinDefaultRandomPitch = 0.8f;   // Default minimum pitch value for SFX.
     private const float MaxDefaultRandomPitch = 1.2f;   // Default maximum pitch value for SFX.
     private const float RandomPitchThreshold  = 0.1f;   // Minimum difference in pitch between repeated sounds.
     private const int   MutedVolume           = -80;    // dB value representing mute.
     private const int   MutedVolumeNormalized = -40;    // Normalized muted volume for volume mapping.
-    #endregion
 
-    #region Variables
+    // Variables
     private Pool<AudioStreamPlayer2D> _sfxPool;
-    private AudioStreamPlayer   _musicPlayer;
-    private ResourceOptions     _options;
-    private Autoloads       _autoloads;
-    private float               _lastPitch;
-    #endregion
+    private AudioStreamPlayer _musicPlayer;
+    private ResourceOptions _options;
+    private Autoloads _autoloads;
+    private float _lastPitch;
 
     /// <summary>
     /// Initializes the AudioManager by attaching a music player to the given autoload node.
@@ -32,7 +30,7 @@ public class AudioManager : IDisposable
         SetupMusicPlayer();
     }
 
-    #region API
+    // API
     /// <summary>
     /// Plays a music track, instantly or with optional fade between tracks. Music volume is in config scale (0-100).
     /// </summary>
@@ -105,9 +103,8 @@ public class AudioManager : IDisposable
             sfxPlayer.VolumeDb = mappedVolume;
         }
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     private void SetupFields(Autoloads autoloads)
     {
         _autoloads = autoloads;
@@ -173,8 +170,8 @@ public class AudioManager : IDisposable
     {
         return volume == 0 ? MutedVolume : volume.Remap(0, 100, MutedVolumeNormalized, 0);
     }
-    #endregion
 
+    // Dispose
     /// <summary>
     /// Frees all managed players and clears references for cleanup.
     /// </summary>

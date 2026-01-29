@@ -9,19 +9,17 @@ namespace __TEMPLATE__.UI;
 
 public partial class PopupMenu : Control
 {
-    #region Exports
+    // Exports
     [Export] private PackedScene _optionsPrefab;
-    #endregion
 
-    #region Events
+    // Events
     public event Action Opened;
     public event Action Closed;
     public event Action OptionsOpened;
     public event Action OptionsClosed;
     public event Action MainMenuBtnPressed;
-    #endregion
 
-    #region Nodes
+    // Nodes
     private Button _resumeBtn;
     private Button _restartBtn;
     private Button _optionsBtn;
@@ -32,9 +30,8 @@ public partial class PopupMenu : Control
     private GameConsole _console;
     private Options _options;
     private Control _menu;
-    #endregion   
 
-    #region Godot Overrides
+    // Godot Overrides
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
@@ -72,9 +69,8 @@ public partial class PopupMenu : Control
     {
         UnregisterNodeEvents();
     }
-    #endregion
 
-    #region Initialization Methods
+    // Initialization Methods
     private void InitializeNodes()
     {
         _console = Game.Console;
@@ -105,9 +101,8 @@ public partial class PopupMenu : Control
         _mainMenuBtn.Pressed -= OnMainMenuPressed;
         _quitBtn.Pressed -= OnQuitPressed;
     }
-    #endregion
 
-    #region Popup Menu
+    // Popup Menu
     private void CreateOptions()
     {
         _options = _optionsPrefab.Instantiate<Options>();
@@ -157,9 +152,8 @@ public partial class PopupMenu : Control
     private void FocusResumeBtn() => _resumeBtn.GrabFocus();
     private void ShowPopupMenu() => _menu.Show();
     private void HidePopupMenu() => _menu.Hide();
-    #endregion
 
-    #region Subscribers
+    // Subscribers
     private void OnResumePressed()
     {
         Hide();
@@ -191,5 +185,4 @@ public partial class PopupMenu : Control
     {
         Autoloads.Instance.ExitGame().FireAndForget();
     }
-    #endregion
 }

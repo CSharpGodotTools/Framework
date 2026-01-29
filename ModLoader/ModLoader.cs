@@ -7,7 +7,7 @@ namespace __TEMPLATE__.UI;
 
 public partial class ModLoader : Node
 {
-    #region Nodes
+    // Nodes
     private Label _uiName;
     private Label _uiModVersion;
     private Label _uiGameVersion;
@@ -15,9 +15,8 @@ public partial class ModLoader : Node
     private Label _uiDescription;
     private Label _uiAuthors;
     private Label _uiIncompatibilities;
-    #endregion
 
-    #region Godot Overrides
+    // Godot Overrides
     public override void _Ready()
     {
         Node uiMods = GetNode<VBoxContainer>("%VBoxMods");
@@ -66,9 +65,8 @@ public partial class ModLoader : Node
             Game.Scene.SwitchToMainMenu();
         }
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     private void DisplayModInfo(ModInfo modInfo)
     {
         _uiName.Text = modInfo.Name;
@@ -98,5 +96,4 @@ public partial class ModLoader : Node
     {
         Process.Start(new ProcessStartInfo(@$"{ProjectSettings.GlobalizePath("res://Mods")}") { UseShellExecute = true });
     }
-    #endregion
 }

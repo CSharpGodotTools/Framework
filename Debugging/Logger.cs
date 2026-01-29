@@ -37,7 +37,7 @@ public class Logger : IDisposable
         DequeueMessages();
     }
 
-    #region API
+    // API
     /// <summary>
     /// Log a message
     /// </summary>
@@ -130,9 +130,8 @@ public class Logger : IDisposable
     {
         return !_messages.IsEmpty;
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     /// <summary>
     /// Dequeues all requested messages and logs them
     /// </summary>
@@ -208,9 +207,8 @@ public class Logger : IDisposable
         GD.PrintErr(v);
         GD.PushError(v);
     }
-    #endregion
 
-    #region Private Types
+    // Private Types
     private class LogInfo(LoggerOpcode opcode, LogMessage data, BBColor color = BBColor.Gray)
     {
         public LoggerOpcode Opcode { get; set; } = opcode;
@@ -236,8 +234,8 @@ public class Logger : IDisposable
         Exception,
         Debug
     }
-    #endregion
 
+    // Dispose
     public void Dispose()
     {
         if (_console != null)

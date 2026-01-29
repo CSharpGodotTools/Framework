@@ -17,17 +17,15 @@ namespace __TEMPLATE__;
 // Alternatively access through GetNode<Autoloads>("/root/Autoloads")
 public partial class Autoloads : Node
 {
-    #region Exports
+    // Exports
     [Export] private MenuScenes _scenes;
-    #endregion
 
-    #region Events
+    // Events
     public event Func<Task> PreQuit;
-    #endregion
 
     public static Autoloads Instance { get; private set; }
 
-    #region Autoloads
+    // Autoloads
     // Cannot use [Export] here because Godot will bug out and unlink export path in editor after setup completes and restarts the editor
     public GameComponentManager ComponentManager { get; private set; }
     public GameConsole          GameConsole      { get; private set; }
@@ -43,9 +41,8 @@ public partial class Autoloads : Node
 #if DEBUG
     private VisualizeAutoload _visualizeAutoload;
 #endif
-    #endregion
 
-    #region Godot Overrides
+    // Godot Overrides
     public override void _EnterTree()
     {
         if (Instance != null)
@@ -115,13 +112,14 @@ public partial class Autoloads : Node
 
         Instance = null;
     }
-    #endregion
 
+    // Special Proxy Method for Usage of Deferred
     public void DeferredSwitchSceneProxy(string rawName, Variant transTypeVariant)
     {
         SceneManager.DeferredSwitchScene(rawName, transTypeVariant);
     }
 
+    // ExitGame
     public async Task ExitGame()
     {
         GetTree().AutoAcceptQuit = false;

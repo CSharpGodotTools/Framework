@@ -9,11 +9,10 @@ namespace __TEMPLATE__.UI;
 
 public class OptionsDisplay : IDisposable
 {
-    #region Events
+    // Events
     public event Action<int> OnResolutionChanged;
-    #endregion
 
-    #region Fields
+    // Fields
     private ResourceOptions _options;
     private Action<WindowMode> _selectWindowModeAction;
 
@@ -28,7 +27,6 @@ public class OptionsDisplay : IDisposable
     private readonly Label _labelMaxFpsFeedback;
     private readonly HSlider _resolutionSlider;
     private readonly OptionButton _vsyncMode;
-    #endregion
 
     public OptionsDisplay(Options options, Button displayBtn)
     {

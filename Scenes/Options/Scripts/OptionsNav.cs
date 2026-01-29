@@ -7,7 +7,7 @@ namespace __TEMPLATE__.UI;
 
 public class OptionsNav : IDisposable
 {
-    #region Nodes
+    // Nodes
     public Button GeneralButton => _generalButton;
     public Button GameplayButton => _gameplayButton;
     public Button DisplayButton => _displayButton;
@@ -21,9 +21,8 @@ public class OptionsNav : IDisposable
     private Button _graphicsButton;
     private Button _audioButton;
     private Button _inputButton;
-    #endregion
 
-    #region Fields
+    // Fields
     private readonly Godot.Collections.Array<Node> _navBtns;
     private readonly Dictionary<string, Control> _tabs = [];
     private readonly Dictionary<string, Button> _buttons = [];
@@ -31,7 +30,6 @@ public class OptionsNav : IDisposable
     private readonly Dictionary<Button, Action> _pressedHandlers = [];
     private readonly Options _options;
     private readonly Label _titleLabel;
-    #endregion
 
     public OptionsNav(Options options, Label titleLabel)
     {
@@ -46,8 +44,8 @@ public class OptionsNav : IDisposable
         HideAllTabs();
         ShowCurrentTab(_titleLabel);
     }
-    
-    #region Private Methods
+
+    // Private Methods
     private void SetupContent()
     {
         Node content = _options.GetNode("%Content");
@@ -124,8 +122,8 @@ public class OptionsNav : IDisposable
             tab.Hide();
         }
     }
-    #endregion
 
+    // Dispose
     public void Dispose()
     {
         UnsubscribeFromNavBtns();

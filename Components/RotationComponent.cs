@@ -6,15 +6,13 @@ namespace __TEMPLATE__;
 [GlobalClass]
 public partial class RotationComponent : Node
 {
-    #region Exports
+    // Exports
     [Export] private float _speed = 1.5f;
-    #endregion
 
-    #region Variables
+    // Variables
     private Node2D _parent;
-    #endregion
 
-    #region Godot Overrides
+    // Godot Overrides
     public override void _Ready()
     {
         _parent = GetParent<Node2D>();
@@ -24,5 +22,4 @@ public partial class RotationComponent : Node
     {
         _parent.Rotation += _speed * (float)delta;
     }
-    #endregion
 }

@@ -15,23 +15,20 @@ namespace __TEMPLATE__.UI;
 // Autoload
 public partial class OptionsManager : IDisposable
 {
-    #region Events
+    // Events
     public event Action<WindowMode> WindowModeChanged;
-    #endregion
 
-    #region Constants
+    // Constants
     private const string PathOptions = "user://options.json";
     private const string PathHotkeys = "user://hotkeys.tres";
-    #endregion
 
-    #region Fields
+    // Fields
     private Dictionary<StringName, Array<InputEvent>> _defaultHotkeys;
     private JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
     private ResourceOptions _options;
     private ResourceHotkeys _hotkeys;
     private string _currentOptionsTab = "General";
     private Autoloads _autoloads;
-    #endregion
 
     public OptionsManager(Autoloads autoloads)
     {

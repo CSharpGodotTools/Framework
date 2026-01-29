@@ -6,12 +6,11 @@ namespace __TEMPLATE__.UI;
 
 public class OptionsGeneral : IDisposable
 {
-    #region Fields
+    // Fields
     private ResourceOptions _options;
     private Button _generalBtn;
     private readonly Options options;
     private OptionButton _languageBtn;
-    #endregion
 
     public OptionsGeneral(Options options, Button generalBtn)
     {

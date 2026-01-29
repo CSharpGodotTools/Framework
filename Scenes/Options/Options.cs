@@ -5,7 +5,7 @@ namespace __TEMPLATE__.UI;
 
 public partial class Options : PanelContainer
 {
-    #region Fields
+    // Fields
     private OptionsNav _optionsNav;
     private OptionsGeneral _optionsGeneral;
     private OptionsGameplay _optionsGameplay;
@@ -14,9 +14,8 @@ public partial class Options : PanelContainer
     private OptionsAudio _optionsAudio;
     private OptionsInput _optionsInput;
     private Node _navNode;
-    #endregion
 
-    #region Godot Overrides
+    // Godot Overrides
     public override void _Ready()
     {
         _navNode = GetNode("%Nav");
@@ -51,9 +50,8 @@ public partial class Options : PanelContainer
         Game.Scene.PostSceneChanged -= OnPostSceneChanged;
         VisibilityChanged -= OnVisibilityChanged;
     }
-    #endregion
 
-    #region Subscribers
+    // Subscribers
     private void OnPostSceneChanged()
     {
         if (Visible)
@@ -69,5 +67,4 @@ public partial class Options : PanelContainer
             _navNode.GetNode<Button>(Game.Options.GetCurrentTab()).GrabFocus();
         }
     }
-    #endregion
 }

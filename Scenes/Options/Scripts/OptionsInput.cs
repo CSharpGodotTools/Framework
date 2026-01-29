@@ -8,22 +8,20 @@ namespace __TEMPLATE__.UI;
 
 public partial class OptionsInput : IDisposable
 {
-    #region Constants
+    // Constants
     private const string RemoveHotkeyAction = "remove_hotkey";
     private const string FullscreenAction = "fullscreen";
     private const string OptionsSceneName = "Options";
     private const string UiPrefix = "ui";
     private const string Ellipsis = "...";
-    #endregion
 
-    #region Fields
+    // Fields
     private readonly Button _resetInputToDefaultsBtn;
     private VBoxContainer _content;
     private BtnInfo _btnNewInput; // The button currently waiting for new input
     private SceneManager _scene;
     private Button _inputNavBtn;
     private bool _listeningOnPlusBtn;
-    #endregion
 
     public OptionsInput(Options options, Button inputNavBtn)
     {

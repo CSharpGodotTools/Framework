@@ -9,7 +9,7 @@ namespace __TEMPLATE__.Debugging;
 
 public class MetricsOverlay
 {
-    #region Config
+    // Config
     private const int BytesInMegabyte     = 1048576;
     private const int BytesInKilobyte     = 1024;
     private const int MaxFpsBuffer        = 100;
@@ -21,9 +21,8 @@ public class MetricsOverlay
     private const string LabelMetrics    = "Metrics";
     private const string LabelVariables  = "Variables";
     private const string LabelFpsGraph   = "##FPSGraph"; // The ## hides the text
-    #endregion
 
-    #region Variables
+    // Variables
     // This was made static to allow tracking variables even before metrics overlay instance gets initialized
     private Dictionary<string, Func<object>> _processMonitors = [];
     private Dictionary<string, Func<object>> _physicsProcessMonitors = [];
@@ -33,7 +32,6 @@ public class MetricsOverlay
     private float _cachedFps;
     private bool _visible;
     private int _fpsIndex;
-    #endregion
 
     public MetricsOverlay()
     {
@@ -96,7 +94,7 @@ public class MetricsOverlay
         }
     }
 
-    #region API
+    // API
     public void StartMonitoringProcess(string key, Func<object> function)
     {
         _visible = true;
@@ -118,9 +116,8 @@ public class MetricsOverlay
     {
         _physicsProcessMonitors.Remove(key);
     }
-    #endregion
 
-    #region Private Methods
+    // Private Methods
     private void RenderProcessMonitors()
     {
         int processMonitors = _processMonitors.Count;
@@ -209,5 +206,4 @@ public class MetricsOverlay
     }
 
     private static double Retrieve(Monitor monitor) => Performance.GetMonitor(monitor);
-    #endregion
 }
