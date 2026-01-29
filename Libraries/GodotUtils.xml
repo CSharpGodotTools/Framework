@@ -4,19 +4,6 @@
         <name>GodotUtils</name>
     </assembly>
     <members>
-        <member name="M:GodotUtils.Debugging.MetricsOverlay.StartMonitoring(System.String,System.Func{System.Object})">
-            <summary>
-            Starts showing a value in the metrics overlay.
-            </summary>
-            <param name="key">Name shown in the overlay.</param>
-            <param name="function">Function that provides the value to display.</param>
-        </member>
-        <member name="M:GodotUtils.Debugging.MetricsOverlay.StopMonitoring(System.String)">
-            <summary>
-            Stops showing a value in the metrics overlay.
-            </summary>
-            <param name="key">Name of the value to stop displaying.</param>
-        </member>
         <member name="M:GodotUtils.Deprecated.EventManager`1.AddListener(`0,System.Action{System.Object[]},System.String)">
             <summary>
             The event type to be listened to (Action uses object[] params by default)
