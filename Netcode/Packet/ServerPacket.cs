@@ -55,11 +55,6 @@ public abstract class ServerPacket : GamePacket
     {
         return PacketRegistry.ServerPacketInfo[_type].Opcode;
     }
-
-    /// <summary>
-    /// The packet handled client-side (Godot thread)
-    /// </summary>
-    public abstract void OnClientReceived(ENetClient client);
 }
 
 public enum SendType

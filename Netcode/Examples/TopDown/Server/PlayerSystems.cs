@@ -24,5 +24,7 @@ public class PlayerSystems
             Username = info.Username,
             Position = info.Position
         };
+
+        _server.Send(new SPacketHello { Message = "What's up?" }, peer);
     }
 }
