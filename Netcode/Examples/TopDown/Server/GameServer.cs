@@ -1,18 +1,18 @@
-using ENet;
 using Framework.Netcode.Server;
-using System;
+using System.Collections.Generic;
 
 namespace Framework.Netcode.Sandbox.Topdown;
 
 public partial class GameServer : GodotServer<GameServer>
 {
+    public Dictionary<uint, Player> Players { get; } = [];
+
+    private PlayerSystems _playerSystems;
+
     public GameServer()
     {
-        RegisterPacketHandler<CPacketPlayerInfo>(OnPlayerInfoPacketReceived);
-    }
+        _playerSystems = new PlayerSystems(this);
 
-    private void OnPlayerInfoPacketReceived(CPacketPlayerInfo info, Peer peer)
-    {
-        Log($"Received {info.Username} from peer {peer.ID}");
+        RegisterPacketHandler<CPacketPlayerInfo>(_playerSystems.OnPlayerInfo);
     }
 }
