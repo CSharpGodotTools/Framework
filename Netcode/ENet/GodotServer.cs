@@ -34,7 +34,6 @@ public abstract class GodotServer : ENetServer
         EmitLoop = SystemTimerFactory.Create(100, OnEmit, false);
         EmitLoop.Start();
 
-        _running = 1;
         CTS = new CancellationTokenSource();
 
         try

@@ -104,6 +104,7 @@ public abstract class ENetServer : ENetLow
         if (Host == null)
             return;
 
+        _running = 1;
         Log("Server is running");
 
         try
