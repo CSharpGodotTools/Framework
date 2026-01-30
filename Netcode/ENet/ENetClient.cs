@@ -9,19 +9,34 @@ namespace Framework.Netcode.Client;
 public abstract class ENetClient : ENetLow
 {
     // Protected Members
-    protected ConcurrentQueue<Cmd<ENetClientOpcode>> ENetCmds          { get; } = new();
-    protected ConcurrentQueue<Cmd<GodotOpcode>>      GodotCmdsInternal { get; } = new();
-    protected ConcurrentQueue<ClientPacket>          Outgoing          { get; } = new();
-    protected ConcurrentQueue<PacketData>            GodotPackets      { get; } = new();
+    protected ConcurrentQueue<Cmd<ENetClientOpcode>> ENetCmds { get; } = new();
+    protected ConcurrentQueue<Cmd<GodotOpcode>> GodotCmdsInternal { get; } = new();
+    protected ConcurrentQueue<ClientPacket> Outgoing { get; } = new();
+    protected ConcurrentQueue<PacketData> GodotPackets { get; } = new();
 
     protected Peer _peer;
     protected long _connected;
 
-    // Private Members
-    private const uint PingIntervalMs = 1000;
-    private const uint PeerTimeoutMs = 5000;
-    private const uint PeerTimeoutMinimumMs = 5000;
-    private const uint PeerTimeoutMaximumMs = 5000;
+    // Config
+    /// <summary>
+    /// The ping interval in ms. The default is 1000.
+    /// </summary>
+    protected virtual uint PingIntervalMs { get; } = 1000;
+
+    /// <summary>
+    /// The peer timeout in ms. The default is 5000.
+    /// </summary>
+    protected virtual uint PeerTimeoutMs { get; } = 5000;
+
+    /// <summary>
+    /// The peer timeout minimum in ms. The default is 5000.
+    /// </summary>
+    protected virtual uint PeerTimeoutMinimumMs { get; } = 5000;
+
+    /// <summary>
+    /// The peer timeout maximum in ms. The default is 5000.
+    /// </summary>
+    protected virtual uint PeerTimeoutMaximumMs { get; } = 5000;
 
     private readonly ConcurrentQueue<Packet> _incoming = new();
 

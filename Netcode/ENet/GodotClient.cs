@@ -1,12 +1,22 @@
-using System.Threading.Tasks;
-using System.Threading;
-using System;
+using ENet;
 using GodotUtils;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Framework.Netcode.Client;
 
 public abstract class GodotClient : ENetClient
 {
+    private readonly static Dictionary<Type, Action<ServerPacket>> _serverPacketHandlers = [];
+
+    protected static void RegisterPacketHandler<TPacket>(Action<TPacket> handler)
+        where TPacket : ServerPacket
+    {
+        _serverPacketHandlers[typeof(TPacket)] = (packet) => handler((TPacket)packet);
+    }
+
     /// <summary>
     /// Fires when the client connects to the server. Thread safe.
     /// </summary>
@@ -103,15 +113,15 @@ public abstract class GodotClient : ENetClient
         while (GodotPackets.TryDequeue(out PacketData packetData))
         {
             PacketReader packetReader = packetData.PacketReader;
-            ServerPacket handlePacket = packetData.HandlePacket;
+            ServerPacket serverPacket = packetData.HandlePacket;
             Type type = packetData.Type;
 
-            handlePacket.Read(packetReader);
+            serverPacket.Read(packetReader);
             packetReader.Dispose();
 
-            handlePacket.OnClientReceived(this);
+            _serverPacketHandlers[type](serverPacket);
 
-            LogReceivedPacket(type, handlePacket);
+            LogReceivedPacket(type, serverPacket);
         }
     }
 

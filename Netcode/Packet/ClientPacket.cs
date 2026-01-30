@@ -25,9 +25,4 @@ public abstract class ClientPacket : GamePacket
     {
         return PacketRegistry.ClientPacketInfoByType[_type].Opcode;
     }
-
-    /// <summary>
-    /// The packet handled server-side
-    /// </summary>
-    public abstract void OnServerReceived(ENetServer server, ENet.Peer client);
 }

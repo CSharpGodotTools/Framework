@@ -1,17 +1,25 @@
 using ENet;
 using Framework.Netcode.Server;
+using Godot;
+using System.Collections.Generic;
 
-namespace Framework.Netcode.Sandbox.Topdown;
+namespace Framework.Netcode.Examples.Topdown;
 
 public partial class GameServer : GodotServer
 {
-    protected override void OnDisconnect(Event netEvent)
+    public Dictionary<uint, Player> Players { get; } = [];
+
+    private PlayerSystems _playerSystems;
+
+    public GameServer()
     {
-        
+        _playerSystems = new PlayerSystems(this);
+
+        RegisterPacketHandler<CPacketPlayerInfo>(_playerSystems.OnPlayerInfo);
     }
 
-    protected override void OnEmit()
+    protected override void OnPeerDisconnect(Event netEvent)
     {
-        
+        _playerSystems.OnPlayerDisconnect(netEvent);
     }
 }

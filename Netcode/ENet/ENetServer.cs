@@ -1,9 +1,11 @@
 using ENet;
+using Framework.Netcode.Examples.Topdown;
+using Godot;
+using GodotUtils;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System;
 using System.IO;
-using GodotUtils;
 
 namespace Framework.Netcode.Server;
 
@@ -15,6 +17,14 @@ public abstract class ENetServer : ENetLow
 
     private readonly ConcurrentQueue<(Packet, Peer)> _incoming = new();
     private readonly ConcurrentQueue<ServerPacket> _outgoing = new();
+
+    private readonly static Dictionary<Type, Action<ClientPacket, Peer>> _clientPacketHandlers = [];
+
+    protected static void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler) 
+        where TPacket : ClientPacket
+    {
+        _clientPacketHandlers[typeof(TPacket)] = (packet, peer) => handler((TPacket)packet, peer);
+    }
 
     /// <summary>
     /// This Dictionary is NOT thread safe and should only be accessed on the ENet Thread
@@ -37,7 +47,7 @@ public abstract class ENetServer : ENetLow
         ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.KickAll, opcode));
     }
 
-    protected abstract void OnEmit();
+    protected virtual void OnEmit() { }
 
     protected void EnqueuePacket(ServerPacket packet)
     {
@@ -57,20 +67,20 @@ public abstract class ENetServer : ENetLow
         Log("Client connected - ID: " + netEvent.Peer.ID);
     }
 
-    protected abstract void OnDisconnect(Event netEvent);
+    protected virtual void OnPeerDisconnect(Event netEvent) { }
 
     protected sealed override void OnDisconnectLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client disconnected - ID: " + netEvent.Peer.ID);
-        OnDisconnect(netEvent);
+        OnPeerDisconnect(netEvent);
     }
 
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client timeout - ID: " + netEvent.Peer.ID);
-        OnDisconnect(netEvent);
+        OnPeerDisconnect(netEvent);
     }
 
     protected sealed override void OnReceiveLow(Event netEvent)
@@ -94,6 +104,7 @@ public abstract class ENetServer : ENetLow
         if (Host == null)
             return;
 
+        _running = 1;
         Log("Server is running");
 
         try
@@ -195,23 +206,23 @@ public abstract class ENetServer : ENetLow
 
     private void ProcessIncomingPackets()
     {
-        while (_incoming.TryDequeue(out (Packet enetPacket, Peer peer) packetPeer))
+        while (_incoming.TryDequeue(out (Packet ENetPacket, Peer Peer) packetPeer))
         {
-            PacketReader reader = new(packetPeer.enetPacket);
+            PacketReader reader = new(packetPeer.ENetPacket);
 
             try
             {
-                if (!TryGetPacketHandler(reader, out ClientPacket handler, out Type type))
+                if (!TryGetPacketHandler(reader, out ClientPacket clientPacket, out Type type))
                     continue;
 
-                if (!TryReadPacket(handler, reader, out string err))
+                if (!TryReadPacket(clientPacket, reader, out string err))
                 {
                     Log($"Received malformed packet: {err} (Ignoring)");
                     continue;
                 }
 
-                handler.OnServerReceived(this, packetPeer.peer);
-                LogPacketReceived(type, packetPeer.peer.ID, handler);
+                _clientPacketHandlers[type](clientPacket, packetPeer.Peer);
+                LogPacketReceived(type, packetPeer.Peer.ID, clientPacket);
             }
             finally
             {

@@ -1,8 +1,7 @@
 using ENet;
 using Godot;
-using Framework.Netcode.Server;
 
-namespace Framework.Netcode.Sandbox.Topdown;
+namespace Framework.Netcode.Examples.Topdown;
 
 public class CPacketPlayerInfo : ClientPacket
 {
@@ -11,8 +10,4 @@ public class CPacketPlayerInfo : ClientPacket
 
     [NetSend(2)]
     public Vector2 Position { get; set; }
-
-    public override void OnServerReceived(ENetServer server, Peer client)
-    {
-    }
 }
