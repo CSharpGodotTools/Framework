@@ -1,20 +1,30 @@
 using ENet;
+using Framework.Netcode.Sandbox.Topdown;
+using Godot;
+using GodotUtils;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System;
 using System.IO;
-using GodotUtils;
 
 namespace Framework.Netcode.Server;
 
 // ENet API Reference: https://github.com/SoftwareGuy/ENet-CSharp/blob/master/DOCUMENTATION.md
-public abstract class ENetServer : ENetLow
+public abstract class ENetServer<TServer> : ENetLow where TServer : ENetServer<TServer>
 {
     protected ConcurrentQueue<Cmd<ENetServerOpcode>> ENetCmds { get; } = new();
     protected System.Timers.Timer EmitLoop { get; set; }
 
     private readonly ConcurrentQueue<(Packet, Peer)> _incoming = new();
     private readonly ConcurrentQueue<ServerPacket> _outgoing = new();
+
+    private readonly static Dictionary<Type, Action<ClientPacket, Peer>> _clientPacketHandlers = [];
+
+    protected static void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler) 
+        where TPacket : ClientPacket
+    {
+        _clientPacketHandlers[typeof(TPacket)] = (packet, peer) => handler((TPacket)packet, peer);
+    }
 
     /// <summary>
     /// This Dictionary is NOT thread safe and should only be accessed on the ENet Thread
@@ -37,7 +47,7 @@ public abstract class ENetServer : ENetLow
         ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.KickAll, opcode));
     }
 
-    protected abstract void OnEmit();
+    protected virtual void OnEmit() { }
 
     protected void EnqueuePacket(ServerPacket packet)
     {
@@ -57,7 +67,7 @@ public abstract class ENetServer : ENetLow
         Log("Client connected - ID: " + netEvent.Peer.ID);
     }
 
-    protected abstract void OnDisconnect(Event netEvent);
+    protected virtual void OnDisconnect(Event netEvent) { }
 
     protected sealed override void OnDisconnectLow(Event netEvent)
     {
@@ -195,23 +205,23 @@ public abstract class ENetServer : ENetLow
 
     private void ProcessIncomingPackets()
     {
-        while (_incoming.TryDequeue(out (Packet enetPacket, Peer peer) packetPeer))
+        while (_incoming.TryDequeue(out (Packet ENetPacket, Peer Peer) packetPeer))
         {
-            PacketReader reader = new(packetPeer.enetPacket);
+            PacketReader reader = new(packetPeer.ENetPacket);
 
             try
             {
-                if (!TryGetPacketHandler(reader, out ClientPacket handler, out Type type))
+                if (!TryGetPacketHandler(reader, out ClientPacket clientPacket, out Type type))
                     continue;
 
-                if (!TryReadPacket(handler, reader, out string err))
+                if (!TryReadPacket(clientPacket, reader, out string err))
                 {
                     Log($"Received malformed packet: {err} (Ignoring)");
                     continue;
                 }
 
-                handler.OnServerReceived(this, packetPeer.peer);
-                LogPacketReceived(type, packetPeer.peer.ID, handler);
+                _clientPacketHandlers[type](clientPacket, packetPeer.Peer);
+                LogPacketReceived(type, packetPeer.Peer.ID, clientPacket);
             }
             finally
             {

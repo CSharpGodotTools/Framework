@@ -2,7 +2,7 @@ using Framework.Netcode.Server;
 
 namespace Framework.Netcode;
 
-public interface IGameServerFactory
+public interface IGameServerFactory<TServer> where TServer : ENetServer<TServer>
 {
-    GodotServer CreateServer();
+    GodotServer<TServer> CreateServer();
 }

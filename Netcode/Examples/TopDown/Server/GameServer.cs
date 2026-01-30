@@ -1,17 +1,18 @@
 using ENet;
 using Framework.Netcode.Server;
+using System;
 
 namespace Framework.Netcode.Sandbox.Topdown;
 
-public partial class GameServer : GodotServer
+public partial class GameServer : GodotServer<GameServer>
 {
-    protected override void OnDisconnect(Event netEvent)
+    public GameServer()
     {
-        
+        RegisterPacketHandler<CPacketPlayerInfo>(OnPlayerInfoPacketReceived);
     }
 
-    protected override void OnEmit()
+    private void OnPlayerInfoPacketReceived(CPacketPlayerInfo info, Peer peer)
     {
-        
+        Log($"Received {info.Username} from peer {peer.ID}");
     }
 }
