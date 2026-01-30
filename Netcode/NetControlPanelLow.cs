@@ -10,8 +10,10 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
     where TGameClient : GodotClient, new()
     where TGameServer : GodotServer, new()
 {
+    // Net
     public Net Net { get; private set; }
 
+    // Exports
     [Export] private LineEdit _usernameLineEdit;
     [Export] private LineEdit _ipLineEdit;
     [Export] private Button _startServerBtn;
@@ -19,16 +21,18 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
     [Export] private Button _startClientBtn;
     [Export] private Button _stopClientBtn;
 
+    // Config
     protected abstract ENetOptions Options { get; set; }
-
     protected virtual int DefaultMaxClients { get; } = 100;
     protected virtual string DefaultLocalIp { get; } = "127.0.0.1";
     protected virtual ushort DefaultPort { get; } = 25565;
 
+    // Fields
     private string _username = "";
     private ushort _port;
     private string _ip;
 
+    // Godot Overrides
     public override void _Ready()
     {
         _port = DefaultPort;
@@ -39,9 +43,17 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
 
         Net = new Net(clientFactory, serverFactory);
 
-        SetupButtons();
-        SetupInputFields();
-        SetupClientEvents();
+        // Setup buttons
+        _startServerBtn.Pressed += () => Net.StartServer(_port, DefaultMaxClients, Options);
+        _stopServerBtn.Pressed += Net.StopServer;
+        _startClientBtn.Pressed += OnStartClientBtnPressed;
+        _stopClientBtn.Pressed += Net.StopClient;
+
+        // Setup input events
+        _ipLineEdit.TextChanged += OnIpChanged;
+        _usernameLineEdit.TextChanged += OnUsernameChanged;
+
+        Net.ClientCreated += OnClientCreated;
     }
 
     public override void _Process(double delta)
@@ -49,23 +61,10 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         Net.Client?.HandlePackets();
     }
 
-    private void SetupButtons()
-    {
-        _startServerBtn.Pressed += () => Net.StartServer(_port, DefaultMaxClients, Options);
-        _stopServerBtn.Pressed += Net.StopServer;
-        _startClientBtn.Pressed += OnStartClientBtnPressed;
-        _stopClientBtn.Pressed += Net.StopClient;
-    }
-
+    // Subscribers
     private async void OnStartClientBtnPressed()
     {
         await Net.StartClient(_ip, _port);
-    }
-
-    private void SetupInputFields()
-    {
-        _ipLineEdit.TextChanged += OnIpChanged;
-        _usernameLineEdit.TextChanged += OnUsernameChanged;
     }
 
     private void OnIpChanged(string text)
@@ -76,11 +75,6 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
     private void OnUsernameChanged(string text)
     {
         _username = text.IsAlphaNumeric() ? text : _username;
-    }
-
-    private void SetupClientEvents()
-    {
-        Net.ClientCreated += OnClientCreated;
     }
 
     private void OnClientCreated(GodotClient client)
@@ -106,6 +100,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         _stopServerBtn.Disabled = false;
     }
 
+    // Private Static Methods
     private static string FetchIpFromString(string ipString, ref ushort port)
     {
         string[] parts = ipString.Split(":");
@@ -119,6 +114,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         return ip;
     }
 
+    // Records
     private record ClientFactory(Func<GodotClient> Creator) : IGameClientFactory
     {
         public GodotClient CreateClient() => Creator();
