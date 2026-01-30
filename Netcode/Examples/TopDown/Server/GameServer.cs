@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Framework.Netcode.Examples.Topdown;
 
-public partial class GameServer : GodotServer<GameServer>
+public partial class GameServer : GodotServer
 {
     public Dictionary<uint, Player> Players { get; } = [];
 

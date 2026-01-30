@@ -7,7 +7,7 @@ using GodotUtils;
 
 namespace Framework.Netcode.Server;
 
-public abstract class GodotServer<TServer> : ENetServer<TServer> where TServer : ENetServer<TServer>
+public abstract class GodotServer : ENetServer
 {
     /// <summary>
     /// <para>

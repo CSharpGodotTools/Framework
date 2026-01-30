@@ -8,9 +8,9 @@ namespace Framework.Netcode;
 
 public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Control
     where TGameClient : GodotClient, new()
-    where TGameServer : GodotServer<TGameServer>, new()
+    where TGameServer : GodotServer, new()
 {
-    public Net<TGameServer> Net { get; private set; }
+    public Net Net { get; private set; }
 
     [Export] private LineEdit _usernameLineEdit;
     [Export] private LineEdit _ipLineEdit;
@@ -37,7 +37,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         ServerFactory serverFactory = new(() => new TGameServer());
         ClientFactory clientFactory = new(() => new TGameClient());
 
-        Net = new Net<TGameServer>(clientFactory, serverFactory);
+        Net = new Net(clientFactory, serverFactory);
 
         SetupButtons();
         SetupInputFields();
@@ -124,8 +124,8 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         public GodotClient CreateClient() => Creator();
     }
 
-    private record ServerFactory(Func<GodotServer<TGameServer>> Creator) : IGameServerFactory<TGameServer>
+    private record ServerFactory(Func<GodotServer> Creator) : IGameServerFactory
     {
-        public GodotServer<TGameServer> CreateServer() => Creator();
+        public GodotServer CreateServer() => Creator();
     }
 }

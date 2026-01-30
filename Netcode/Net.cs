@@ -5,23 +5,23 @@ using Framework.Netcode.Server;
 
 namespace Framework.Netcode;
 
-public class Net<TServer> where TServer : ENetServer<TServer>
+public class Net
 {
-    public event Action<GodotServer<TServer>> ServerCreated;
+    public event Action<GodotServer> ServerCreated;
     public event Action<GodotClient> ClientCreated;
 
     public static int HeartbeatPosition { get; } = 20;
 
-    public GodotServer<TServer> Server { get; private set; }
+    public GodotServer Server { get; private set; }
     public GodotClient Client { get; private set; }
 
     private const int ShutdownPollIntervalMs = 50;
 
     private readonly IGameClientFactory _clientFactory;
-    private readonly IGameServerFactory<TServer> _serverFactory;
+    private readonly IGameServerFactory _serverFactory;
     private readonly bool _enetInitialized;
 
-    public Net(IGameClientFactory clientFactory, IGameServerFactory<TServer> serverFactory)
+    public Net(IGameClientFactory clientFactory, IGameServerFactory serverFactory)
     {
         try
         {

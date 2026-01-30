@@ -10,7 +10,7 @@ using System.IO;
 namespace Framework.Netcode.Server;
 
 // ENet API Reference: https://github.com/SoftwareGuy/ENet-CSharp/blob/master/DOCUMENTATION.md
-public abstract class ENetServer<TServer> : ENetLow where TServer : ENetServer<TServer>
+public abstract class ENetServer : ENetLow
 {
     protected ConcurrentQueue<Cmd<ENetServerOpcode>> ENetCmds { get; } = new();
     protected System.Timers.Timer EmitLoop { get; set; }
