@@ -27,4 +27,18 @@ public class PlayerSystems
 
         _server.Send(new SPacketHello { Message = "What's up?" }, peer);
     }
+
+    public void OnPlayerDisconnect(Event netEvent)
+    {
+        uint id = netEvent.Peer.ID;
+
+        if (!_server.Players.ContainsKey(id))
+        {
+            _server.Log($"Can't remove peer {id} from players because they never existed to begin with");
+            return;
+        }
+
+        _server.Players.Remove(id);
+        _server.Log($"Removed peer {id} from players");
+    }
 }

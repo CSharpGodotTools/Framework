@@ -1,4 +1,6 @@
+using ENet;
 using Framework.Netcode.Server;
+using Godot;
 using System.Collections.Generic;
 
 namespace Framework.Netcode.Examples.Topdown;
@@ -14,5 +16,10 @@ public partial class GameServer : GodotServer
         _playerSystems = new PlayerSystems(this);
 
         RegisterPacketHandler<CPacketPlayerInfo>(_playerSystems.OnPlayerInfo);
+    }
+
+    protected override void OnPeerDisconnect(Event netEvent)
+    {
+        _playerSystems.OnPlayerDisconnect(netEvent);
     }
 }

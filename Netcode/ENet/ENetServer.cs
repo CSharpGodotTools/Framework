@@ -67,20 +67,20 @@ public abstract class ENetServer : ENetLow
         Log("Client connected - ID: " + netEvent.Peer.ID);
     }
 
-    protected virtual void OnDisconnect(Event netEvent) { }
+    protected virtual void OnPeerDisconnect(Event netEvent) { }
 
     protected sealed override void OnDisconnectLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client disconnected - ID: " + netEvent.Peer.ID);
-        OnDisconnect(netEvent);
+        OnPeerDisconnect(netEvent);
     }
 
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client timeout - ID: " + netEvent.Peer.ID);
-        OnDisconnect(netEvent);
+        OnPeerDisconnect(netEvent);
     }
 
     protected sealed override void OnReceiveLow(Event netEvent)
