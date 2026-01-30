@@ -10,7 +10,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
     where TGameClient : GodotClient, new()
     where TGameServer : GodotServer, new()
 {
-    // Net
+    // API
     public Net Net { get; private set; }
 
     // Exports
@@ -32,7 +32,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
     private ushort _port;
     private string _ip;
 
-    // Godot Overrides
+    // Godot Lifecycle
     public override void _Ready()
     {
         _port = DefaultPort;
@@ -44,7 +44,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         Net = new Net(clientFactory, serverFactory);
 
         // Setup buttons
-        _startServerBtn.Pressed += () => Net.StartServer(_port, DefaultMaxClients, Options);
+        _startServerBtn.Pressed += OnStartServerPressed;
         _stopServerBtn.Pressed += Net.StopServer;
         _startClientBtn.Pressed += OnStartClientBtnPressed;
         _stopClientBtn.Pressed += Net.StopClient;
@@ -54,6 +54,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         _usernameLineEdit.TextChanged += OnUsernameChanged;
 
         Net.ClientCreated += OnClientCreated;
+        Net.ClientDestroyed += OnClientDestroyed;
     }
 
     public override void _Process(double delta)
@@ -61,7 +62,24 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         Net.Client?.HandlePackets();
     }
 
-    // Subscribers
+    public override void _ExitTree()
+    {
+        _startServerBtn.Pressed -= OnStartServerPressed;
+        _stopServerBtn.Pressed -= Net.StopServer;
+        _startClientBtn.Pressed -= OnStartClientBtnPressed;
+        _stopClientBtn.Pressed -= Net.StopClient;
+
+        _ipLineEdit.TextChanged -= OnIpChanged;
+        _usernameLineEdit.TextChanged -= OnUsernameChanged;
+
+        Net.ClientCreated -= OnClientCreated;
+        Net.ClientDestroyed -= OnClientDestroyed;
+        Net = null;
+    }
+
+    // UI Callbacks
+    private void OnStartServerPressed() => Net.StartServer(_port, DefaultMaxClients, Options);
+
     private async void OnStartClientBtnPressed()
     {
         await Net.StartClient(_ip, _port);
@@ -81,6 +99,12 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
     {
         client.Connected += OnClientConnected;
         client.Disconnected += OnClientDisconnected;
+    }
+
+    private void OnClientDestroyed(GodotClient client)
+    {
+        client.Connected -= OnClientConnected;
+        client.Disconnected -= OnClientDisconnected;
     }
 
     private void OnClientConnected()

@@ -9,6 +9,7 @@ public class Net
 {
     public event Action<GodotServer> ServerCreated;
     public event Action<GodotClient> ClientCreated;
+    public event Action<GodotClient> ClientDestroyed;
 
     public static int HeartbeatPosition { get; } = 20;
 
@@ -92,6 +93,8 @@ public class Net
         }
 
         Client.Stop();
+
+        ClientDestroyed?.Invoke(Client);
     }
 
     private async Task StopThreads()
