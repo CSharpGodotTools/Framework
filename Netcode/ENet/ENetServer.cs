@@ -1,5 +1,5 @@
 using ENet;
-using Framework.Netcode.Sandbox.Topdown;
+using Framework.Netcode.Examples.Topdown;
 using Godot;
 using GodotUtils;
 using System;

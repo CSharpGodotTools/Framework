@@ -1,4 +1,4 @@
-namespace Framework.Netcode.Sandbox.Topdown;
+namespace Framework.Netcode.Examples.Topdown;
 
 public class ServerMessages
 {

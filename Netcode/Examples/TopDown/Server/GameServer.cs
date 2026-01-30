@@ -1,7 +1,7 @@
 using Framework.Netcode.Server;
 using System.Collections.Generic;
 
-namespace Framework.Netcode.Sandbox.Topdown;
+namespace Framework.Netcode.Examples.Topdown;
 
 public partial class GameServer : GodotServer<GameServer>
 {

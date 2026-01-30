@@ -1,6 +1,6 @@
 using Godot;
 
-namespace Framework.Netcode.Sandbox.Topdown;
+namespace Framework.Netcode.Examples.Topdown;
 
 public partial class World : Node
 {
