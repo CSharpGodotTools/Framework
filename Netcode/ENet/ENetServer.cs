@@ -212,7 +212,7 @@ public abstract class ENetServer : ENetLow
 
             try
             {
-                if (!TryGetPacketHandler(reader, out ClientPacket clientPacket, out Type type))
+                if (!TryGetPacketAndType(reader, out ClientPacket clientPacket, out Type type))
                     continue;
 
                 if (!TryReadPacket(clientPacket, reader, out string err))
@@ -231,30 +231,28 @@ public abstract class ENetServer : ENetLow
         }
     }
 
-    private bool TryGetPacketHandler(PacketReader reader, out ClientPacket handler, out Type type)
+    private bool TryGetPacketAndType(PacketReader packetReader, out ClientPacket clientPacket, out Type type)
     {
-        handler = null;
-
-        // Note: reader is positioned at start of packet when constructed
-        byte opcode = reader.ReadByte();
+        // The reader is positioned at start of packet when constructed
+        byte opcode = packetReader.ReadByte();
 
         if (!PacketRegistry.ClientPacketTypeByOpcode.TryGetValue(opcode, out type))
         {
             Log($"Received malformed opcode: {opcode} (Ignoring)");
+            clientPacket = null;
             return false;
         }
 
-        handler = PacketRegistry.ClientPacketInfoByType[type].Instance;
+        clientPacket = PacketRegistry.ClientPacketInfoByType[type].Instance;
         return true;
     }
 
-    private static bool TryReadPacket(ClientPacket handler, PacketReader reader, out string error)
+    private static bool TryReadPacket(ClientPacket clientPacket, PacketReader packetReader, out string error)
     {
-        error = null;
-
         try
         {
-            handler.Read(reader);
+            clientPacket.Read(packetReader);
+            error = "No error";
             return true;
         }
         catch (EndOfStreamException e)
