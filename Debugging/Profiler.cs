@@ -7,11 +7,11 @@ namespace Framework.Debugging;
 public class Profiler
 {
     // Variables
-    private Dictionary<string, ProfilerEntry> _entries = [];
+    private static Dictionary<string, ProfilerEntry> _entries = [];
     private const int DefaultAccuracy = 2;
 
     // API
-    public void Start(string key)
+    public static void Start(string key)
     {
         if (!_entries.TryGetValue(key, out ProfilerEntry entry))
         {
@@ -22,7 +22,7 @@ public class Profiler
         entry.Start();
     }
 
-    public void Stop(string key, int accuracy = DefaultAccuracy)
+    public static void Stop(string key, int accuracy = DefaultAccuracy)
     {
         ProfilerEntry entry = _entries[key];
 
@@ -33,18 +33,18 @@ public class Profiler
         entry.Reset();
     }
 
-    public void StartProcess(string key, int accuracy = DefaultAccuracy)
+    public static void StartProcess(string key, int accuracy = DefaultAccuracy)
     {
         StartMonitor(key, accuracy, GameFramework.Metrics.StartMonitoring);
     }
 
-    public void StopProcess(string key)
+    public static void StopProcess(string key)
     {
         _entries[key].Stop();
     }
 
     // Private Methods
-    private void StartMonitor(string key, int accuracy, Action<string, Func<object>> registerAction)
+    private static void StartMonitor(string key, int accuracy, Action<string, Func<object>> registerAction)
     {
         if (!_entries.TryGetValue(key, out ProfilerEntry entry))
         {
