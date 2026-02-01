@@ -11,8 +11,6 @@ namespace Framework.Netcode;
 /// </summary>
 public abstract class GamePacket
 {
-    private static readonly Dictionary<Type, PropertyInfo[]> _netSendPropertyCache = [];
-
     public static int MaxSize => 8192;
 
     protected Peer[] Peers { get; private set; }
@@ -52,39 +50,12 @@ public abstract class GamePacket
 
     public virtual void Write(PacketWriter writer)
     {
-        PropertyInfo[] properties = GetNetSendProperties();
-
-        foreach (PropertyInfo property in properties)
-        {
-            writer.Write(property.GetValue(this));
-        }
+        // Handled by source generator
     }
 
     public virtual void Read(PacketReader reader)
     {
-        PropertyInfo[] properties = GetNetSendProperties();
-
-        foreach (PropertyInfo property in properties)
-        {
-            property.SetValue(this, reader.Read(property.PropertyType));
-        }
-    }
-
-    private PropertyInfo[] GetNetSendProperties()
-    {
-        Type type = GetType();
-
-        // Properties are cached by type instead of per instance for improved performance
-        if (!_netSendPropertyCache.TryGetValue(type, out PropertyInfo[] props))
-        {
-            props = [.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.CanRead && p.GetCustomAttributes(typeof(NetSendAttribute), true).Length != 0)
-                .OrderBy(p => ((NetSendAttribute)p.GetCustomAttributes(typeof(NetSendAttribute), true).First()).Order)];
-
-            _netSendPropertyCache[type] = props;
-        }
-
-        return props;
+        // Handled by source generator
     }
 
     protected Packet CreateENetPacket()

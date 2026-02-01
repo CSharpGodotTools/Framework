@@ -23,6 +23,6 @@ public abstract class ClientPacket : GamePacket
 
     public override byte GetOpcode()
     {
-        return PacketRegistry.ClientPacketInfoByType[_type].Opcode;
+        return PacketRegistry.ClientPacketInfo[_type].Opcode;
     }
 }

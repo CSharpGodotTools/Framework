@@ -6,8 +6,7 @@ using System.Threading.Tasks;
 
 namespace Framework.Netcode.Examples.Topdown;
 
-public class SPacketHello : ServerPacket
+public partial class SPacketHello : ServerPacket
 {
-    [NetSend(1)]
     public string Message { get; set; }
 }

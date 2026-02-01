@@ -236,14 +236,14 @@ public abstract class ENetServer : ENetLow
         // The reader is positioned at start of packet when constructed
         byte opcode = packetReader.ReadByte();
 
-        if (!PacketRegistry.ClientPacketTypeByOpcode.TryGetValue(opcode, out type))
+        if (!PacketRegistry.ClientPacketTypes.TryGetValue(opcode, out type))
         {
             Log($"Received malformed opcode: {opcode} (Ignoring)");
             clientPacket = null;
             return false;
         }
 
-        clientPacket = PacketRegistry.ClientPacketInfoByType[type].Instance;
+        clientPacket = PacketRegistry.ClientPacketInfo[type].Instance;
         return true;
     }
 
