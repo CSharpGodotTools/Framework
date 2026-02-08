@@ -9,7 +9,7 @@ namespace Framework.UI;
 
 public class ModLoaderUI
 {
-    private Dictionary<string, ModInfo> _mods = [];
+    private readonly Dictionary<string, ModInfo> _mods = [];
 
     public Dictionary<string, ModInfo> GetMods()
     {

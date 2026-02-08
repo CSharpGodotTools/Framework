@@ -61,7 +61,7 @@ public class SceneManager
         string sceneFilePath = _tree.CurrentScene.SceneFilePath;
 
         string[] words = sceneFilePath.Split("/");
-        string sceneName = words[words.Length - 1].Replace(".tscn", "");
+        string sceneName = words[^1].Replace(".tscn", "");
 
         PreSceneChanged?.Invoke();
 

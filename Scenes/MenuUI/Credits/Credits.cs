@@ -167,6 +167,7 @@ public partial class Credits : Node
         }
     }
 
+#pragma warning disable IDE1006 // Naming Styles
     private void _OnPausePressed()
     {
         _paused = !_paused;
@@ -194,7 +195,7 @@ public partial class Credits : Node
         _direction = -_direction;
         _btnReverse.Text = _direction > 0 ? ForwardText : ReverseText;
     }
-
+#pragma warning restore IDE1006 // Naming Styles
     private static HBoxContainer GetHBoxTextWithLink(string text)
     {
         // Find the start of the URL
@@ -212,9 +213,9 @@ public partial class Credits : Node
         if (endIndex < 0)
             endIndex = text.Length;
 
-        string leftText = text.Substring(0, startIndex);
-        string url = text.Substring(startIndex, endIndex - startIndex);
-        string rightText = text.Substring(endIndex);
+        string leftText = text[..startIndex];
+        string url = text[startIndex..endIndex];
+        string rightText = text[endIndex..];
 
         HBoxContainer hbox = new()
         {

@@ -8,7 +8,7 @@ namespace Framework.Netcode.Examples.Topdown;
 
 public partial class GameClient : GodotClient
 {
-    private ServerMessages _serverMessages;
+    private readonly ServerMessages _serverMessages;
 
     public GameClient()
     {

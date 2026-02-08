@@ -11,8 +11,8 @@ public partial class GameConsole : Node
     private const int MaxTextFeed = 1000;
 
     // Variables
-    private List<ConsoleCommandInfo> _commands = [];
-    private ConsoleHistory           _history = new();
+    private readonly List<ConsoleCommandInfo> _commands = [];
+    private readonly ConsoleHistory _history = new();
     private PanelContainer           _mainContainer;
     private PopupPanel               _settingsPopup;
     private CheckBox                 _settingsAutoScroll;
@@ -87,7 +87,7 @@ public partial class GameConsole : Node
             // If there are say 2353 characters then 2353 - 1000 = 1353 characters
             // which is how many characters we need to remove to get back down to
             // 1000 characters
-            _feed.Text = _feed.Text.Remove(0, _feed.Text.Length - MaxTextFeed);
+            _feed.Text = _feed.Text[^MaxTextFeed..];
         }
 
         _feed.Text += $"\n{message}";

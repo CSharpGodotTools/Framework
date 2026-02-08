@@ -17,10 +17,10 @@ public partial class OptionsInput : IDisposable
 
     // Fields
     private readonly Button _resetInputToDefaultsBtn;
-    private VBoxContainer _content;
+    private readonly VBoxContainer _content;
     private BtnInfo _btnNewInput; // The button currently waiting for new input
-    private SceneManager _scene;
-    private Button _inputNavBtn;
+    private readonly SceneManager _scene;
+    private readonly Button _inputNavBtn;
     private bool _listeningOnPlusBtn;
 
     public OptionsInput(Options options, Button inputNavBtn)
@@ -41,6 +41,7 @@ public partial class OptionsInput : IDisposable
     public void Dispose()
     {
         _resetInputToDefaultsBtn.Pressed -= OnResetToDefaultsPressed;
+        GC.SuppressFinalize(this);
     }
 
     public void HandleInput(InputEvent @event)
@@ -288,7 +289,7 @@ public partial class OptionsInput : IDisposable
         _btnNewInput.Btn.Text = Ellipsis;
     }
 
-    private string GetReadableForInput(InputEvent inputEvent)
+    private static string GetReadableForInput(InputEvent inputEvent)
     {
         // Convert keyboard events to their human readable representation.
         if (inputEvent is InputEventKey key)

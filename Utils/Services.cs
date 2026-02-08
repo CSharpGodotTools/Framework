@@ -14,8 +14,8 @@ public class Services(AutoloadsFramework autoloads)
     /// <summary>
     /// Dictionary to store registered services, keyed by their type.
     /// </summary>
-    private Dictionary<Type, Service> _services = [];
-    private SceneManager _sceneManager = autoloads.SceneManager;
+    private readonly Dictionary<Type, Service> _services = [];
+    private readonly SceneManager _sceneManager = autoloads.SceneManager;
 
     // API
     /// <summary>

@@ -59,7 +59,7 @@ public class Profiler
     }
 
     // Dispose
-    public void Dispose()
+    public static void Dispose()
     {
         _entries = null;
     }

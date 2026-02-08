@@ -6,16 +6,16 @@ namespace Framework.UI;
 public partial class FocusOutlineManager(Node owner) : Component(owner)
 {
     // Config
-    private float _flashSpeed = 4f;
-    private float _minAlpha = 0.35f;
-    private float _maxAlpha = 0.7f;
+    private readonly float _flashSpeed = 4f;
+    private readonly float _minAlpha = 0.35f;
+    private readonly float _maxAlpha = 0.7f;
 
     // Variables
     private NavigationMethod _lastNavigation = NavigationMethod.Mouse;
     private Viewport _viewport;
     private Control _currentFocus;
     private Control _outline;
-    private Node _owner = owner;
+    private readonly Node _owner = owner;
     private float _time;
 
     // Godot Overrides

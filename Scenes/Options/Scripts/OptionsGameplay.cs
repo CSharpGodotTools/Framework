@@ -10,15 +10,15 @@ public class OptionsGameplay : IDisposable
     public event Action<float> OnMouseSensitivityChanged;
 
     // Fields
-    private ResourceOptions _options;
-    private Button _gameplayBtn;
-    private readonly Options options;
+    private ResourceOptions _resourceOptions;
+    private readonly Button _gameplayBtn;
+    private readonly Options _options;
     private readonly OptionButton _difficultyBtn;
     private readonly HSlider _sensitivitySlider;
 
     public OptionsGameplay(Options options, Button gameplayButton)
     {
-        this.options = options;
+        this._options = options;
         _gameplayBtn = gameplayButton;
         _difficultyBtn = options.GetNode<OptionButton>("%Difficulty");
         _sensitivitySlider = options.GetNode<HSlider>("%Sensitivity");
@@ -30,32 +30,32 @@ public class OptionsGameplay : IDisposable
 
     private void GetOptions()
     {
-        _options = GameFramework.Options.GetOptions();
+        _resourceOptions = GameFramework.Options.GetOptions();
     }
 
     private void SetupDifficulty()
     {
         _difficultyBtn.FocusNeighborLeft = _gameplayBtn.GetPath();
-        _difficultyBtn.Select((int)_options.Difficulty);
+        _difficultyBtn.Select((int)_resourceOptions.Difficulty);
         _difficultyBtn.ItemSelected += OnDifficultyItemSelected;
     }
 
     private void SetupSensitivity()
     {
         _sensitivitySlider.FocusNeighborLeft = _gameplayBtn.GetPath();
-        _sensitivitySlider.Value = _options.MouseSensitivity;
+        _sensitivitySlider.Value = _resourceOptions.MouseSensitivity;
         _sensitivitySlider.ValueChanged += OnSensitivityValueChanged;
     }
 
     private void OnDifficultyItemSelected(long index)
     {
-        _options.Difficulty = (Difficulty)index;
+        _resourceOptions.Difficulty = (Difficulty)index;
     }
 
     private void OnSensitivityValueChanged(double v)
     {
         float value = (float)v;
-        _options.MouseSensitivity = value;
+        _resourceOptions.MouseSensitivity = value;
         OnMouseSensitivityChanged?.Invoke(value);
     }
 
@@ -63,6 +63,7 @@ public class OptionsGameplay : IDisposable
     {
         _difficultyBtn.ItemSelected -= OnDifficultyItemSelected;
         _sensitivitySlider.ValueChanged -= OnSensitivityValueChanged;
+        GC.SuppressFinalize(this);
     }
 }
 

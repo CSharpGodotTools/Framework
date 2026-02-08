@@ -24,6 +24,7 @@ public partial class OptionsAudio : IDisposable
     {
         _musicSlider.ValueChanged -= OnMusicValueChanged;
         _sfxSlider.ValueChanged -= OnSoundsValueChanged;
+        GC.SuppressFinalize(this);
     }
 
     private void GetOptions()

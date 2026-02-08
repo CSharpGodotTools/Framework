@@ -9,7 +9,7 @@ public partial class GameServer : GodotServer
 {
     public Dictionary<uint, Player> Players { get; } = [];
 
-    private PlayerSystems _playerSystems;
+    private readonly PlayerSystems _playerSystems;
 
     public GameServer()
     {

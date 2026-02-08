@@ -24,7 +24,7 @@ public partial class OptionsManager : IDisposable
 
     // Fields
     private Dictionary<StringName, Array<InputEvent>> _defaultHotkeys;
-    private JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
+    private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
     private ResourceOptions _options;
     private ResourceHotkeys _hotkeys;
     private string _currentOptionsTab = "General";
@@ -64,6 +64,7 @@ public partial class OptionsManager : IDisposable
     public void Dispose()
     {
         _autoloads.PreQuit -= SaveSettingsOnQuit;
+        GC.SuppressFinalize(this);
     }
 
     public string GetCurrentTab()
@@ -219,7 +220,7 @@ public partial class OptionsManager : IDisposable
 
     // *.tres files store the path to their script in res:// and as a result if that script is moved then the
     // path in *.tres will point to an invalid path and so this function corrects the path again.
-    private void ValdiateResourceFile(string localUserPath, string localResPath)
+    private static void ValdiateResourceFile(string localUserPath, string localResPath)
     {
         string userGlobalPath = ProjectSettings.GlobalizePath(localUserPath);
         string content = File.ReadAllText(userGlobalPath);
@@ -312,7 +313,7 @@ public partial class OptionsManager : IDisposable
     private void SetLanguage()
     {
         TranslationServer.SetLocale(
-        _options.Language.ToString().Substring(0, 2).ToLower());
+        _options.Language.ToString()[..2].ToLower());
     }
 
     private void SetAntialiasing()

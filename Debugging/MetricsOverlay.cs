@@ -2,6 +2,7 @@ using Godot;
 using ImGuiNET;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Monitor = Godot.Performance.Monitor;
 using Vector2 = System.Numerics.Vector2;
 
@@ -24,10 +25,10 @@ public class MetricsOverlay
 
     // Variables
     // This was made static to allow tracking variables even before metrics overlay instance gets initialized
-    private Dictionary<string, Func<object>> _processMonitors = [];
-    private Dictionary<string, Func<string>> _currentMetrics = [];
+    private readonly Dictionary<string, Func<object>> _processMonitors = [];
+    private readonly Dictionary<string, Func<string>> _currentMetrics = [];
 
-    private float[] _fpsBuffer = new float[MaxFpsBuffer];
+    private readonly float[] _fpsBuffer = new float[MaxFpsBuffer];
     private float _cachedFps;
     private bool _visible;
     private int _fpsIndex;

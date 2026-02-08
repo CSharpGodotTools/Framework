@@ -5,6 +5,8 @@ using Godot;
 using GodotUtils;
 using System;
 using System.Threading.Tasks;
+using System.Linq;
+
 
 #if DEBUG
 using GodotUtils.Debugging;
@@ -138,7 +140,7 @@ public abstract partial class AutoloadsFramework : Node
         {
             // Since the PreQuit event contains a Task only the first subscriber will be invoked
             // with await PreQuit?.Invoke(); so need to ensure all subs are invoked.
-            foreach (Func<Task> subscriber in PreQuit.GetInvocationList())
+            foreach (Func<Task> subscriber in PreQuit.GetInvocationList().Cast<Func<Task>>())
             {
                 try
                 {

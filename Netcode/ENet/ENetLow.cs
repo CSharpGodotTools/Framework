@@ -31,7 +31,7 @@ public abstract class ENetLow
 
     protected void InitIgnoredPackets(Type[] ignoredPackets)
     {
-        IgnoredPackets = new HashSet<Type>(ignoredPackets);
+        IgnoredPackets = [.. ignoredPackets];
     }
 
     protected void WorkerLoop()

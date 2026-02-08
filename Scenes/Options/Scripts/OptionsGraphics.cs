@@ -9,14 +9,14 @@ public class OptionsGraphics : IDisposable
     public event Action<int> AntialiasingChanged;
 
     // Fields
-    private ResourceOptions _options;
+    private ResourceOptions _resourceOptions;
     private OptionButton _antialiasing;
-    private readonly Options options;
+    private readonly Options _options;
     private readonly OptionButton _optionBtnQualityPreset;
 
     public OptionsGraphics(Options options, Button graphicsBtn)
     {
-        this.options = options;
+        _options = options;
         _optionBtnQualityPreset = options.GetNode<OptionButton>("%QualityMode");
 
         GetOptions();
@@ -28,36 +28,37 @@ public class OptionsGraphics : IDisposable
     {
         _optionBtnQualityPreset.ItemSelected -= OnQualityModeItemSelected;
         _antialiasing.ItemSelected -= OnAntialiasingItemSelected;
+        GC.SuppressFinalize(this);
     }
 
     private void GetOptions()
     {
-        _options = GameFramework.Options.GetOptions();
+        _resourceOptions = GameFramework.Options.GetOptions();
     }
 
     private void SetupQualityPreset(Button graphicsBtn)
     {
         _optionBtnQualityPreset.FocusNeighborLeft = graphicsBtn.GetPath();
-        _optionBtnQualityPreset.Select((int)_options.QualityPreset);
+        _optionBtnQualityPreset.Select((int)_resourceOptions.QualityPreset);
         _optionBtnQualityPreset.ItemSelected += OnQualityModeItemSelected;
     }
 
     private void SetupAntialiasing(Button graphicsBtn)
     {
-        _antialiasing = options.GetNode<OptionButton>("%Antialiasing");
+        _antialiasing = _options.GetNode<OptionButton>("%Antialiasing");
         _antialiasing.FocusNeighborLeft = graphicsBtn.GetPath();
-        _antialiasing.Select(_options.Antialiasing);
+        _antialiasing.Select(_resourceOptions.Antialiasing);
         _antialiasing.ItemSelected += OnAntialiasingItemSelected;
     }
 
     private void OnQualityModeItemSelected(long index)
     {
-        _options.QualityPreset = (QualityPreset)index;
+        _resourceOptions.QualityPreset = (QualityPreset)index;
     }
 
     private void OnAntialiasingItemSelected(long index)
     {
-        _options.Antialiasing = (int)index;
+        _resourceOptions.Antialiasing = (int)index;
         AntialiasingChanged?.Invoke((int)index);
     }
 }

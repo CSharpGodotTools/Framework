@@ -2,6 +2,7 @@ using Godot;
 using GodotUtils;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Framework.UI;
 
@@ -50,7 +51,7 @@ public class OptionsNav : IDisposable
     {
         Node content = _options.GetNode("%Content");
 
-        foreach (Control child in content.GetChildren())
+        foreach (Control child in content.GetChildren().Cast<Control>())
         {
             _tabs.Add(child.Name, child);
         }
@@ -58,7 +59,7 @@ public class OptionsNav : IDisposable
 
     private void SubscribeToNavBtns(Label titleLabel)
     {
-        foreach (Button button in _navBtns)
+        foreach (Button button in _navBtns.Cast<Button>())
         {
             string btnName = button.Name;
 
@@ -77,7 +78,7 @@ public class OptionsNav : IDisposable
 
     private void UnsubscribeFromNavBtns()
     {
-        foreach (Button button in _navBtns)
+        foreach (Button button in _navBtns.Cast<Button>())
         {
             button.FocusEntered -= _focusEnteredHandlers[button];
             button.Pressed -= _pressedHandlers[button];
@@ -127,5 +128,6 @@ public class OptionsNav : IDisposable
     public void Dispose()
     {
         UnsubscribeFromNavBtns();
+        GC.SuppressFinalize(this);
     }
 }

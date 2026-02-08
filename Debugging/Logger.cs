@@ -240,5 +240,7 @@ public class Logger : IDisposable
     {
         if (_console != null)
             MessageLogged -= _console.AddMessage;
+
+        GC.SuppressFinalize(this);
     }
 }
