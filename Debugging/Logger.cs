@@ -17,8 +17,6 @@ namespace Framework;
  */
 public class Logger : IDisposable
 {
-    public static bool UseGodotBackend { get; set; } = true;
-
     public event Action<string> MessageLogged;
 
     private readonly ConcurrentQueue<LogInfo> _messages = [];
@@ -191,11 +189,6 @@ public class Logger : IDisposable
     private static void Print(object v, BBColor color)
     {
         //Console.ForegroundColor = color;
-        if (!UseGodotBackend)
-        {
-            Console.WriteLine(v);
-            return;
-        }
 
         if (EditorUtils.IsExportedRelease())
         {
@@ -211,12 +204,6 @@ public class Logger : IDisposable
     private static void PrintErr(object v)
     {
         //Console.ForegroundColor = color;
-        if (!UseGodotBackend)
-        {
-            Console.Error.WriteLine(v);
-            return;
-        }
-
         GD.PrintErr(v);
         GD.PushError(v);
     }
