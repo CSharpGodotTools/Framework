@@ -8,6 +8,11 @@ namespace Framework;
 public partial class GameFramework
 {
 #if DEBUG
+    private static Logger _loggerOverride;
+
+    public static void UseLoggerForTests(Logger logger) => _loggerOverride = logger;
+    public static void ClearLoggerOverride() => _loggerOverride = null;
+
     /// <summary>
     /// Check if the autoloads singleton is not null. If it is null then show an error explaining
     /// that the developer cannot access the autoloads singleton just yet and it needs time to
@@ -41,7 +46,7 @@ public partial class GameFramework
     public static GameConsole Console => IsAutoloadsSetup(a => a.GameConsole, nameof(Console));
     public static Profiler Profiler => IsAutoloadsSetup(a => a.Profiler, nameof(Profiler));
     public static Services Services => IsAutoloadsSetup(a => a.Services, nameof(Services));
-    public static Logger Logger => IsAutoloadsSetup(a => a.Logger, nameof(Logger));
+    public static Logger Logger => _loggerOverride ?? IsAutoloadsSetup(a => a.Logger, nameof(Logger));
 #else
     // The games release will not have the slow debugging checks
     public static FocusOutlineManager FocusOutline => Autoloads.Instance.FocusOutline;
