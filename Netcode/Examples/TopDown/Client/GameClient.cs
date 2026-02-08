@@ -22,7 +22,23 @@ public partial class GameClient : GodotClient
         CPacketPlayerInfo infoPacket = new()
         {
             Username = "Valky",
-            Position = new Vector2(100, 100)
+            Position = new Vector2(100, 100),
+
+            InventoryItemIds = [1, 5, 12, 42],
+
+            ActiveBuffs =
+            [
+                "SpeedBoost",
+                "Regeneration",
+                "FireResist"
+            ],
+
+            Stats =
+            {
+                ["Health"] = 250,
+                ["Mana"] = 120,
+                ["Defense"] = 18
+            }
         };
 
         Send(infoPacket);
