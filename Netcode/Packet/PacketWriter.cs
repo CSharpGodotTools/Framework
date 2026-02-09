@@ -25,7 +25,7 @@ public class PacketWriter : IDisposable
 
         Type t = v.GetType();
 
-        if (t.IsPrimitive || t == typeof(string))
+        if (t.IsPrimitive || t == typeof(string) || t == typeof(decimal))
         {
             WritePrimitive(v);
             return;

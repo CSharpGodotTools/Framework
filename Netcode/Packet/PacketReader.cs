@@ -45,7 +45,7 @@ public class PacketReader : IDisposable
     {
         Type t = typeof(T);
 
-        if (t.IsPrimitive || t == typeof(string))
+        if (t.IsPrimitive || t == typeof(string) || t == typeof(decimal))
         {
             return ReadPrimitive<T>(t);
         }
@@ -68,6 +68,11 @@ public class PacketReader : IDisposable
         if (t.IsEnum)
         {
             return ReadEnum<T>();
+        }
+
+        if (t.IsArray)
+        {
+            return (T)(object)ReadArray(t.GetElementType());
         }
 
         if (t.IsValueType || t.IsClass)
@@ -93,6 +98,7 @@ public class PacketReader : IDisposable
         if (t == typeof(double)) return (T)(object)ReadDouble();
         if (t == typeof(long))   return (T)(object)ReadLong();
         if (t == typeof(ulong))  return (T)(object)ReadULong();
+        if (t == typeof(decimal)) return (T)(object)ReadDecimal();
 
         throw new NotImplementedException("PacketReader: " + t + " is not a supported primitive type.");
     }
@@ -155,6 +161,18 @@ public class PacketReader : IDisposable
 
         // Throw exception for unsupported generic type
         throw new NotImplementedException("PacketReader: " + t + " is not a supported generic type.");
+    }
+
+    private Array ReadArray(Type elementType)
+    {
+        int count = ReadInt();
+        Array array = Array.CreateInstance(elementType, count);
+        for (int i = 0; i < count; i++)
+        {
+            array.SetValue(Read(elementType), i);
+        }
+
+        return array;
     }
 
     private T ReadStructOrClass<T>(Type t)
