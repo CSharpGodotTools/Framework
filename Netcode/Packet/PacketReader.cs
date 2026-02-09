@@ -35,6 +35,7 @@ public class PacketReader : IDisposable
     public double  ReadDouble()         => _reader.ReadDouble();
     public long    ReadLong()           => _reader.ReadInt64();
     public ulong   ReadULong()          => _reader.ReadUInt64();
+    public decimal ReadDecimal()        => _reader.ReadDecimal();
     public byte[]  ReadBytes(int count) => _reader.ReadBytes(count);
     public byte[]  ReadBytes()          => ReadBytes(ReadInt());
     public Vector2 ReadVector2()        => new(ReadFloat(), ReadFloat());
