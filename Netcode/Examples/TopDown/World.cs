@@ -47,7 +47,7 @@ public partial class World : Node2D
             return;
         }
 
-        Vector2 input = Input.GetVector("ui_left", "ui_right", "ui_up", "ui_down");
+        Vector2 input = Input.GetVector(InputActions.MoveLeft, InputActions.MoveRight, InputActions.MoveUp, InputActions.MoveDown);
         Vector2 velocity = input.LengthSquared() > 0f ? input * MoveSpeed : Vector2.Zero;
         if (velocity.LengthSquared() > 0f)
         {
@@ -203,11 +203,8 @@ public partial class World : Node2D
     {
         if (id == _localId)
         {
-            if (_localPlayer != null)
-            {
-                _localPlayer.QueueFree();
-                _localPlayer = null;
-            }
+            _localPlayer?.QueueFree();
+            _localPlayer = null;
 
             return;
         }
@@ -223,11 +220,8 @@ public partial class World : Node2D
     {
         _sendAccumulator = 0f;
         _hasLocalId = false;
-        if (_localPlayer != null)
-        {
-            _localPlayer.QueueFree();
-            _localPlayer = null;
-        }
+        _localPlayer?.QueueFree();
+        _localPlayer = null;
 
         foreach (ColorRect rect in _remotePlayers.Values)
         {
