@@ -1,9 +1,11 @@
 [gd_scene format=3 uid="uid://btwdcgmbvwyid"]
 
 [ext_resource type="Script" uid="uid://couxv6kqigkv1" path="res://Framework/Netcode/Examples/TopDown/UI/NetControlPanel.cs" id="1_8p5wx"]
+[ext_resource type="Script" uid="uid://cob5cr24j0h3k" path="res://Framework/Netcode/Examples/TopDown/World.cs" id="1_world"]
 [ext_resource type="PackedScene" uid="uid://c6pism2kgjr5c" path="res://Framework/Scenes/PopupMenu/PopupMenu.tscn" id="2_pk5r8"]
 
 [node name="World" type="Node2D" unique_id=131430110]
+script = ExtResource("1_world")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1905248894]
 

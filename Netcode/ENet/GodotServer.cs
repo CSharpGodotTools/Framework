@@ -119,7 +119,7 @@ public abstract class GodotServer : ENetServer
             string peerDescription = GetPeerDescription(clients);
             string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : "";
 
-            string message = $"Broadcasting packet {type.Name} {byteSize}{peerDescription}{packetData}";
+            string message = $"Broadcasting packet {type.Name} {byteSize} {peerDescription}{packetData}";
 
             Log(message);
         }

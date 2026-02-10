@@ -1,46 +1,41 @@
 using ENet;
 using Framework.Netcode.Client;
 using Godot;
+using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Framework.Netcode.Examples.Topdown;
 
 public partial class GameClient : GodotClient
 {
-    private readonly ServerMessages _serverMessages;
+    public event Action<uint, bool> PlayerJoinedLeaved;
+    public event Action<Dictionary<uint, Vector2>> PositionsUpdated;
+
+    public uint PeerId => _peer.ID;
 
     public GameClient()
     {
-        _serverMessages = new ServerMessages(this);
-
-        RegisterPacketHandler<SPacketHello>(_serverMessages.OnHello);
+        RegisterPacketHandler<SPacketPlayerJoinedLeaved>(OnPlayerJoinedLeaved);
+        RegisterPacketHandler<SPacketPlayerPositions>(OnPlayerPositions);
     }
 
     protected override void OnConnect(Event netEvent)
     {
-        CPacketPlayerInfo infoPacket = new()
-        {
-            Username = "Valky",
-            Position = new Vector2(100, 100),
+        Send(new CPacketPlayerJoinLeave { Joined = true });
+    }
 
-            InventoryItemIds = [1, 5, 12, 42],
+    public void SendPosition(Vector2 position)
+    {
+        Send(new CPacketPlayerPosition { Position = position });
+    }
 
-            ActiveBuffs =
-            [
-                "SpeedBoost",
-                "Regeneration",
-                "FireResist"
-            ],
+    private void OnPlayerJoinedLeaved(SPacketPlayerJoinedLeaved packet)
+    {
+        PlayerJoinedLeaved?.Invoke(packet.Id, packet.Joined);
+    }
 
-            Stats =
-            {
-                ["Health"] = 250,
-                ["Mana"] = 120,
-                ["Defense"] = 18
-            }
-        };
-
-        Send(infoPacket);
+    private void OnPlayerPositions(SPacketPlayerPositions packet)
+    {
+        PositionsUpdated?.Invoke(new Dictionary<uint, Vector2>(packet.Positions));
     }
 }
