@@ -8,12 +8,14 @@ namespace Framework.Netcode.Examples.Topdown;
 public partial class World : Node2D
 {
     private const float PlayerSize = 18f;
+    private const float RemoteLerpSpeed = 6f;
 
     private NetControlPanel _netControlPanel;
     private GameClient _client;
 
     private LocalPlayer _localPlayer;
     private readonly Dictionary<uint, ColorRect> _remotePlayers = [];
+    private readonly Dictionary<uint, Vector2> _remoteTargets = [];
 
     public override void _Ready()
     {
@@ -38,6 +40,7 @@ public partial class World : Node2D
     {
         float deltaSeconds = (float)delta;
         _localPlayer?.Tick(deltaSeconds);
+        UpdateRemotePlayers(deltaSeconds);
     }
 
     private void OnClientCreated(GodotClient client)
@@ -103,7 +106,10 @@ public partial class World : Node2D
         foreach (KeyValuePair<uint, Vector2> kvp in positions)
         {
             ColorRect rect = EnsureRemotePlayer(kvp.Key);
-            rect.Position = kvp.Value;
+            if (!_remoteTargets.ContainsKey(kvp.Key))
+                rect.Position = kvp.Value;
+
+            _remoteTargets[kvp.Key] = kvp.Value;
         }
     }
 
@@ -141,6 +147,7 @@ public partial class World : Node2D
         {
             rect.QueueFree();
             _remotePlayers.Remove(id);
+            _remoteTargets.Remove(id);
         }
     }
 
@@ -155,6 +162,7 @@ public partial class World : Node2D
         }
 
         _remotePlayers.Clear();
+        _remoteTargets.Clear();
     }
 
     public static ColorRect CreatePlayerRect(Color color)
@@ -175,5 +183,19 @@ public partial class World : Node2D
     {
         if (_client != null && _client.IsConnected && _localPlayer != null && _client.HasLocalId)
             SetProcess(true);
+    }
+
+    private void UpdateRemotePlayers(float deltaSeconds)
+    {
+        if (_remoteTargets.Count == 0)
+            return;
+
+        float t = 1f - Mathf.Exp(-RemoteLerpSpeed * deltaSeconds);
+
+        foreach (KeyValuePair<uint, Vector2> kvp in _remoteTargets)
+        {
+            if (_remotePlayers.TryGetValue(kvp.Key, out ColorRect rect))
+                rect.Position = rect.Position.Lerp(kvp.Value, t);
+        }
     }
 }

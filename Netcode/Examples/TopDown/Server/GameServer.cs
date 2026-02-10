@@ -8,7 +8,7 @@ namespace Framework.Netcode.Examples.Topdown;
 
 public partial class GameServer : GodotServer
 {
-    private const int BroadcastIntervalMs = 100;
+    private const int BroadcastIntervalMs = 50;
 
     private readonly Dictionary<uint, Vector2> _positions = [];
     private long _lastBroadcastTicks;
