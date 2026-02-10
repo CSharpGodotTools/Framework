@@ -78,7 +78,7 @@
             Represents the context for a visual control
             </summary>
         </member>
-        <member name="M:GodotUtils.Debugging.VisualControlContext.#ctor(System.Collections.Generic.List{GodotUtils.Debugging.VisualSpinBox},System.Object,System.Action{System.Object})">
+        <member name="M:GodotUtils.Debugging.VisualControlContext.#ctor(System.Object,System.Action{System.Object})">
             <summary>
             Represents the context for a visual control
             </summary>
@@ -108,7 +108,7 @@
             Methods that can be executed manually by pressing a button in-game. Parameters are supported.
             </summary>
         </member>
-        <member name="M:GodotUtils.Debugging.VisualMethods.CreateMethodParameterControls(System.Reflection.MethodInfo,System.Collections.Generic.List{GodotUtils.Debugging.VisualSpinBox},System.Object[])">
+        <member name="M:GodotUtils.Debugging.VisualMethods.CreateMethodParameterControls(System.Reflection.MethodInfo,System.Object[])">
             <summary>
             Creates the UI needed for the method parameters
             </summary>
@@ -118,66 +118,16 @@
             The main core class for the visualizer UI
             </summary>
         </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.LoadEmbeddedTexture(System.String)">
-            <summary>
-            Loads a PNG image embedded in the assembly as a resource and converts it into an ImageTexture.
-            The <paramref name="resourceName"/> must be the fully qualified path including the namespace 
-            and folders, for example "Visualize.Icons.EyeOpen.png".
-            </summary>
-        </member>
         <member name="M:GodotUtils.Debugging.VisualUI.CreateVisualPanel(GodotUtils.Debugging.VisualData,System.String[])">
             <summary>
             Creates the visual panel for a specified visual node.
             </summary>
         </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.SetButtonsToReleaseFocusOnPress(Godot.VBoxContainer)">
+        <member name="M:GodotUtils.Debugging.VisualUiResources.LoadEmbeddedTexture(System.String)">
             <summary>
-            Ensures buttons release focus on press within a VBoxContainer.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.CreateColoredVBox(Godot.Color)">
-            <summary>
-            Creates a colored VBoxContainer with specified RGB values.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.CreatePanelContainer(System.String)">
-            <summary>
-            Creates a panel container with a specified name.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.TryGetMemberInfo(Godot.Node,System.String,System.Reflection.PropertyInfo@,System.Reflection.FieldInfo@,System.Object@)">
-            <summary>
-            Attempts to get member information for a Internal.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.AddReadonlyControls(System.String[],Godot.Node,Godot.Control,System.Collections.Generic.List{System.Action},System.Collections.Generic.List{GodotUtils.Debugging.VisualSpinBox})">
-            <summary>
-            Adds visual controls for specified members of a Internal.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.CreateCanvasLayer(System.String,System.UInt64)">
-            <summary>
-            Creates a canvas layer for a Internal with a specified name and instance ID.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.TryAddReadonlyControlAsync(System.String,Godot.Control,Godot.Node,System.Reflection.FieldInfo,System.Reflection.PropertyInfo,System.Collections.Generic.List{System.Action},System.Collections.Generic.List{GodotUtils.Debugging.VisualSpinBox})">
-            <summary>
-            Asynchronously tries to add a visual control for a Internal member.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.AddReadonlyControl(System.String,Godot.Control,Godot.Node,System.Reflection.FieldInfo,System.Reflection.PropertyInfo,System.Object,System.Collections.Generic.List{System.Action},System.Collections.Generic.List{GodotUtils.Debugging.VisualSpinBox})">
-            <summary>
-            Adds a visual control to the UI for a Internal member.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.AddMutableControls(Godot.Control,System.Collections.Generic.IEnumerable{System.Reflection.MemberInfo},Godot.Node,System.Collections.Generic.List{GodotUtils.Debugging.VisualSpinBox})">
-            <summary>
-            Adds member information elements to a VBoxContainer.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.Debugging.VisualUI.CreateMemberInfoElement(System.Reflection.MemberInfo,Godot.Node,System.Collections.Generic.List{GodotUtils.Debugging.VisualSpinBox})">
-            <summary>
-            Creates a member information element for a specified Internal member.
+            Loads a PNG image embedded in the assembly as a resource and converts it into an ImageTexture.
+            The <paramref name="resourceName"/> must be the fully qualified path including the namespace
+            and folders, for example "Visualize.Icons.EyeOpen.png".
             </summary>
         </member>
         <member name="T:GodotUtils.Debugging.ExampleScene.MethodName">
@@ -345,7 +295,7 @@
         <member name="T:GodotUtils.Debugging.Visualize">
             <summary>
             This logger shows all messages in game making it easier to debug
-            </summary> 
+            </summary>
         </member>
         <member name="T:Godot.OnImportEditorPlugin.MethodName">
             <summary>
