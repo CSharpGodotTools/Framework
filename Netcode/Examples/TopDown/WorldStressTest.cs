@@ -23,6 +23,8 @@ public partial class World
         private bool _started;
         private bool _paused;
 
+        public bool IsRunning => _started;
+
         public WorldStressTest(World world)
         {
             _world = world;

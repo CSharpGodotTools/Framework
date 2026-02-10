@@ -87,7 +87,6 @@ public partial class World : Node2D
 
     private void OnClientDisconnected(DisconnectOpcode _)
     {
-        SetProcess(false);
         ClearPlayers();
     }
 
@@ -122,7 +121,8 @@ public partial class World : Node2D
     private void DetachClient()
     {
         _client = null;
-        SetProcess(false);
+        if (_stressTest == null || !_stressTest.IsRunning)
+            SetProcess(false);
         ClearPlayers();
     }
 
@@ -209,5 +209,6 @@ public partial class World : Node2D
     {
         _stressTest ??= new WorldStressTest(this);
         _stressTest.Start();
+        SetProcess(true);
     }
 }
