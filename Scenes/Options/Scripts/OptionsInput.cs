@@ -182,10 +182,27 @@ public partial class OptionsInput : IDisposable
 
             InputEvent persistentEvent = (InputEvent)@event.Duplicate();
 
+            if (_store.HasDuplicate(action, persistentEvent))
+            {
+                HandleDuplicate(action);
+                return;
+            }
+
             _view.ReplaceButton(_current, persistentEvent);
             _store.ReplaceEvent(action, _current.InputEvent, persistentEvent);
             _view.FocusPlusButton(action);
 
+            Clear();
+        }
+
+        private void HandleDuplicate(StringName action)
+        {
+            if (_current.IsPlus)
+                _view.RemoveButton(_current);
+            else
+                _view.RestoreListening(_current);
+
+            _view.FocusPlusButton(action);
             Clear();
         }
 
@@ -239,9 +256,65 @@ public partial class OptionsInput : IDisposable
             InputMap.ActionAddEvent(action, newEvent);
         }
 
+        public bool HasDuplicate(StringName action, InputEvent candidate)
+        {
+            Array<InputEvent> events = Actions[action];
+            for (int i = 0; i < events.Count; i++)
+            {
+                if (EventsMatch(events[i], candidate))
+                    return true;
+            }
+
+            return false;
+        }
+
         public void ResetToDefaults()
         {
             _options.ResetHotkeys();
+        }
+
+        private static bool EventsMatch(InputEvent left, InputEvent right)
+        {
+            if (ReferenceEquals(left, right))
+                return true;
+
+            if (left == null || right == null)
+                return false;
+
+            if (left is InputEventKey leftKey && right is InputEventKey rightKey)
+            {
+                if (!ModifiersMatch(leftKey, rightKey))
+                    return false;
+
+                return KeyMatch(leftKey.Keycode, rightKey.Keycode)
+                    || KeyMatch(leftKey.PhysicalKeycode, rightKey.PhysicalKeycode)
+                    || KeyMatch(leftKey.Keycode, rightKey.PhysicalKeycode)
+                    || KeyMatch(leftKey.PhysicalKeycode, rightKey.Keycode);
+            }
+
+            if (left is InputEventMouseButton leftMouse && right is InputEventMouseButton rightMouse)
+            {
+                return leftMouse.ButtonIndex == rightMouse.ButtonIndex
+                    && ModifiersMatch(leftMouse, rightMouse);
+            }
+
+            return false;
+        }
+
+        private static bool ModifiersMatch(InputEventWithModifiers left, InputEventWithModifiers right)
+        {
+            return left.ShiftPressed == right.ShiftPressed
+                && left.AltPressed == right.AltPressed
+                && left.CtrlPressed == right.CtrlPressed
+                && left.MetaPressed == right.MetaPressed;
+        }
+
+        private static bool KeyMatch(Key left, Key right)
+        {
+            int leftValue = (int)left;
+            int rightValue = (int)right;
+
+            return leftValue != 0 && rightValue != 0 && leftValue == rightValue;
         }
     }
 
