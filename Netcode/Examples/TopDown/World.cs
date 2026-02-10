@@ -9,13 +9,18 @@ public partial class World : Node2D
 {
     private const float MoveSpeed = 200f;
     private const float PlayerSize = 18f;
+    private const float SendIntervalSeconds = 0.05f;
+    private const float SendEpsilonSq = 0.25f;
 
     private NetControlPanel _netControlPanel;
     private GameClient _client;
     private uint _localId;
+    private bool _hasLocalId;
 
     private ColorRect _localPlayer;
     private readonly Dictionary<uint, ColorRect> _remotePlayers = [];
+    private float _sendAccumulator;
+    private Vector2 _lastSentPosition;
 
     public override void _Ready()
     {
@@ -43,13 +48,27 @@ public partial class World : Node2D
         }
 
         Vector2 input = Input.GetVector("ui_left", "ui_right", "ui_up", "ui_down");
-        if (input.LengthSquared() <= 0f)
+        Vector2 velocity = input.LengthSquared() > 0f ? input * MoveSpeed : Vector2.Zero;
+        if (velocity.LengthSquared() > 0f)
+        {
+            _localPlayer.Position += velocity * (float)delta;
+        }
+
+        _sendAccumulator += (float)delta;
+        if (_sendAccumulator < SendIntervalSeconds)
         {
             return;
         }
 
-        _localPlayer.Position += input * MoveSpeed * (float)delta;
-        _client.SendPosition(_localPlayer.Position);
+        Vector2 position = _localPlayer.Position;
+        if ((position - _lastSentPosition).LengthSquared() < SendEpsilonSq)
+        {
+            return;
+        }
+
+        _sendAccumulator = 0f;
+        _lastSentPosition = position;
+        _client.SendPosition(position);
     }
 
     private void OnClientCreated(GodotClient client)
@@ -83,8 +102,12 @@ public partial class World : Node2D
 
     private void OnClientConnected()
     {
-        _localId = _client.PeerId;
         EnsureLocalPlayer();
+        Vector2 center = GetScreenCenter();
+        _localPlayer.Position = center;
+        _lastSentPosition = center;
+        _sendAccumulator = 0f;
+        _client.SendPosition(center);
     }
 
     private void OnClientDisconnected(DisconnectOpcode _)
@@ -96,6 +119,14 @@ public partial class World : Node2D
     {
         if (joined)
         {
+            if (!_hasLocalId)
+            {
+                _localId = id;
+                _hasLocalId = true;
+                EnsureLocalPlayer();
+                return;
+            }
+
             if (id == _localId)
             {
                 EnsureLocalPlayer();
@@ -136,6 +167,7 @@ public partial class World : Node2D
     {
         _client = null;
         _localId = 0;
+        _hasLocalId = false;
         ClearPlayers();
     }
 
@@ -148,6 +180,7 @@ public partial class World : Node2D
 
         _localPlayer = CreatePlayerRect(new Color(0.2f, 0.8f, 1f));
         _localPlayer.Name = "LocalPlayer";
+        _localPlayer.Position = GetScreenCenter();
         AddChild(_localPlayer);
     }
 
@@ -160,6 +193,7 @@ public partial class World : Node2D
 
         rect = CreatePlayerRect(new Color(1f, 0.55f, 0.2f));
         rect.Name = $"Player_{id}";
+        rect.Position = GetScreenCenter();
         _remotePlayers[id] = rect;
         AddChild(rect);
         return rect;
@@ -187,6 +221,8 @@ public partial class World : Node2D
 
     private void ClearPlayers()
     {
+        _sendAccumulator = 0f;
+        _hasLocalId = false;
         if (_localPlayer != null)
         {
             _localPlayer.QueueFree();
@@ -208,5 +244,10 @@ public partial class World : Node2D
             Color = color,
             Size = new Vector2(PlayerSize, PlayerSize)
         };
+    }
+
+    private Vector2 GetScreenCenter()
+    {
+        return GetViewportRect().Size * 0.5f;
     }
 }
