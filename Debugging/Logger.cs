@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 
 namespace Framework;
 
@@ -21,6 +22,12 @@ public class Logger : IDisposable
 
     private readonly ConcurrentQueue<LogInfo> _messages = [];
     private readonly GameConsole _console;
+    private int _queuedCount;
+    private int _droppedCount;
+    private int _dropSummaryPending;
+
+    public int MaxLogsPerFrame { get; set; } = 50;
+    public int MaxQueueDepth { get; set; } = 2000;
 
     public Logger() // No game console dependence
     {
@@ -43,7 +50,7 @@ public class Logger : IDisposable
     /// </summary>
     public void Log(object message, BBColor color = BBColor.Gray)
     {
-        _messages.Enqueue(new LogInfo(LoggerOpcode.Message, new LogMessage($"{message}"), color));
+        EnqueueMessage(new LogInfo(LoggerOpcode.Message, new LogMessage($"{message}"), color));
     }
 
     /// <summary>
@@ -66,7 +73,7 @@ public class Logger : IDisposable
 
         LogInfo logInfo = new(LoggerOpcode.Message, new LogMessage(message));
 
-        _messages.Enqueue(logInfo);
+        EnqueueMessage(logInfo);
     }
 
     /// <summary>
@@ -128,7 +135,7 @@ public class Logger : IDisposable
     /// </summary>
     public bool StillWorking()
     {
-        return !_messages.IsEmpty;
+        return Volatile.Read(ref _queuedCount) > 0;
     }
 
     // Private Methods
@@ -137,8 +144,16 @@ public class Logger : IDisposable
     /// </summary>
     private void DequeueMessages()
     {
-        while (_messages.TryDequeue(out LogInfo result))
+        int processed = 0;
+
+        while (processed < MaxLogsPerFrame && _messages.TryDequeue(out LogInfo result))
+        {
+            Interlocked.Decrement(ref _queuedCount);
+            processed++;
             DequeueMessage(result);
+        }
+
+        MaybeLogDroppedSummary();
     }
 
     /// <summary>
@@ -182,8 +197,7 @@ public class Logger : IDisposable
         string[] elements = filePath.Split(Path.DirectorySeparatorChar);
         string tracePath = $"  at {elements[^1]}:{lineNumber}"; // TracePath could become for example: "at Main.cs:23"
 
-        _messages.Enqueue(
-            new LogInfo(opcode, new LogMessageTrace(message, trace, tracePath), color));
+        EnqueueMessage(new LogInfo(opcode, new LogMessageTrace(message, trace, tracePath), color));
     }
 
     private static void Print(object v, BBColor color)
@@ -206,6 +220,39 @@ public class Logger : IDisposable
         //Console.ForegroundColor = color;
         GD.PrintErr(v);
         GD.PushError(v);
+    }
+
+    private void EnqueueMessage(LogInfo logInfo)
+    {
+        int queued = Interlocked.Increment(ref _queuedCount);
+        if (MaxQueueDepth > 0 && queued > MaxQueueDepth)
+        {
+            Interlocked.Decrement(ref _queuedCount);
+            Interlocked.Increment(ref _droppedCount);
+            Interlocked.Exchange(ref _dropSummaryPending, 1);
+            return;
+        }
+
+        _messages.Enqueue(logInfo);
+    }
+
+    private void MaybeLogDroppedSummary()
+    {
+        if (MaxQueueDepth <= 0)
+            return;
+
+        if (Volatile.Read(ref _queuedCount) >= MaxQueueDepth)
+            return;
+
+        if (Interlocked.CompareExchange(ref _dropSummaryPending, 0, 1) != 1)
+            return;
+
+        int dropped = Interlocked.Exchange(ref _droppedCount, 0);
+        if (dropped <= 0)
+            return;
+
+        _messages.Enqueue(new LogInfo(LoggerOpcode.Message, new LogMessage($"Logger dropped {dropped} messages due to backlog")));
+        Interlocked.Increment(ref _queuedCount);
     }
 
     // Private Types

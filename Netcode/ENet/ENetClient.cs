@@ -2,6 +2,8 @@ using ENet;
 using System.Collections.Concurrent;
 using System;
 using GodotUtils;
+using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
@@ -18,6 +20,7 @@ public abstract class ENetClient : ENetLow
 
     protected Peer _peer;
     protected long _connected;
+    private static readonly ClientLogAggregator _logAggregator = new();
 
     // Config
     /// <summary>
@@ -47,7 +50,11 @@ public abstract class ENetClient : ENetLow
     /// </summary>
     public sealed override void Log(object message, BBColor color = BBColor.Gray)
     {
-        GameFramework.Logger.Log($"[Client] {message}", color);
+        string timestamp = string.Empty;
+        if (Options != null && Options.ShowLogTimestamps)
+            timestamp = $"[{DateTime.Now:HH:mm:ss}] ";
+
+        GameFramework.Logger.Log($"{timestamp}[Client] {message}", color);
     }
 
     protected sealed override void ConcurrentQueues()
@@ -55,6 +62,7 @@ public abstract class ENetClient : ENetLow
         ProcessENetCommands();
         ProcessIncomingPackets();
         ProcessOutgoingPackets();
+        _logAggregator.Flush(force: false, message => Log(message));
     }
 
     protected virtual void OnConnect(Event netEvent) { }
@@ -65,7 +73,7 @@ public abstract class ENetClient : ENetLow
     {
         Interlocked.Exchange(ref _connected, 1);
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Connected));
-        Log("Client connected to server");
+        _logAggregator.RecordConnect(netEvent.Peer.ID);
         TryInvoke(() => OnConnect(netEvent));
     }
 
@@ -77,7 +85,7 @@ public abstract class ENetClient : ENetLow
         
         OnDisconnectCleanup(_peer);
 
-        Log($"Received disconnect opcode from server: {opcode.ToString().ToLower()}");
+        _logAggregator.RecordDisconnect(netEvent.Peer.ID);
         TryInvoke(() => OnDisconnect(netEvent));
     }
 
@@ -88,7 +96,7 @@ public abstract class ENetClient : ENetLow
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Timeout));
 
         OnDisconnectCleanup(_peer);
-        Log("Client connection timeout");
+        _logAggregator.RecordTimeout(netEvent.Peer.ID);
         TryInvoke(() => OnTimeout(netEvent));
     }
 
@@ -130,7 +138,7 @@ public abstract class ENetClient : ENetLow
             Host.Dispose();
         }
         
-        Log("Client has stopped");
+        NotifyClientStopped();
     }
 
     private void ProcessENetCommands()
@@ -213,7 +221,9 @@ public abstract class ENetClient : ENetLow
         if (!Options.PrintPacketSent || IgnoredPackets.Contains(type))
             return;
 
-        string packetData = Options.PrintPacketData ? $"\n{clientPacket.ToFormattedString()}" : string.Empty;
+        string packetData = string.Empty;
+        if (Options.PrintPacketData)
+            packetData = $"\n{clientPacket.ToFormattedString()}";
         Log($"Sent packet: {type.Name} {FormatByteSize(clientPacket.GetSize())}{packetData}");
     }
 
@@ -222,6 +232,162 @@ public abstract class ENetClient : ENetLow
         Address address = new() { Port = port };
         address.SetHost(ip);
         return address;
+    }
+
+    private sealed class ClientLogAggregator
+    {
+        private const double QuietGapSeconds = 0.5;
+        private const double MaxWindowSeconds = 5.0;
+
+        private int _connectedCount;
+        private int _disconnectedCount;
+        private int _timeoutCount;
+
+        private long _eventWindowStartTicks;
+        private long _eventLastEventTicks;
+
+        private long _lastConnectTicks;
+        private long _lastDisconnectTicks;
+        private long _lastTimeoutTicks;
+        private long _lastConnectPeerId;
+        private long _lastDisconnectPeerId;
+        private long _lastTimeoutPeerId;
+
+        public void RecordConnect(uint peerId)
+        {
+            Interlocked.Increment(ref _connectedCount);
+            Interlocked.Exchange(ref _lastConnectPeerId, (long)peerId);
+            MarkEvent(ref _lastConnectTicks);
+        }
+
+        public void RecordDisconnect(uint peerId)
+        {
+            Interlocked.Increment(ref _disconnectedCount);
+            Interlocked.Exchange(ref _lastDisconnectPeerId, (long)peerId);
+            MarkEvent(ref _lastDisconnectTicks);
+        }
+
+        public void RecordTimeout(uint peerId)
+        {
+            Interlocked.Increment(ref _timeoutCount);
+            Interlocked.Exchange(ref _lastTimeoutPeerId, (long)peerId);
+            MarkEvent(ref _lastTimeoutTicks);
+        }
+
+        public void Flush(bool force, Action<string> log)
+        {
+            int connectedSnapshot = Volatile.Read(ref _connectedCount);
+            int disconnectedSnapshot = Volatile.Read(ref _disconnectedCount);
+            int timeoutSnapshot = Volatile.Read(ref _timeoutCount);
+            if (connectedSnapshot == 0 && disconnectedSnapshot == 0 && timeoutSnapshot == 0)
+                return;
+
+            long startTicks = Interlocked.Read(ref _eventWindowStartTicks);
+            long lastEventTicks = Interlocked.Read(ref _eventLastEventTicks);
+            if (startTicks == 0 || lastEventTicks == 0)
+                return;
+
+            long now = Stopwatch.GetTimestamp();
+            double sinceLast = (now - lastEventTicks) / (double)Stopwatch.Frequency;
+            double windowSeconds = (lastEventTicks - startTicks) / (double)Stopwatch.Frequency;
+
+            if (!force && sinceLast < QuietGapSeconds && windowSeconds < MaxWindowSeconds)
+                return;
+
+            if (!force && Interlocked.CompareExchange(ref _eventLastEventTicks, 0, lastEventTicks) != lastEventTicks)
+                return;
+
+            int connects = Interlocked.Exchange(ref _connectedCount, 0);
+            int disconnects = Interlocked.Exchange(ref _disconnectedCount, 0);
+            int timeouts = Interlocked.Exchange(ref _timeoutCount, 0);
+            long lastConnectTicks = Interlocked.Exchange(ref _lastConnectTicks, 0);
+            long lastDisconnectTicks = Interlocked.Exchange(ref _lastDisconnectTicks, 0);
+            long lastTimeoutTicks = Interlocked.Exchange(ref _lastTimeoutTicks, 0);
+            long lastConnectPeerId = Interlocked.Exchange(ref _lastConnectPeerId, 0);
+            long lastDisconnectPeerId = Interlocked.Exchange(ref _lastDisconnectPeerId, 0);
+            long lastTimeoutPeerId = Interlocked.Exchange(ref _lastTimeoutPeerId, 0);
+
+            if (force)
+                Interlocked.Exchange(ref _eventLastEventTicks, 0);
+
+            Interlocked.CompareExchange(ref _eventWindowStartTicks, 0, startTicks);
+
+            double reportSeconds = Math.Max(windowSeconds, 0.01);
+
+            List<(long Tick, Action LogAction)> entries = new(3);
+            if (connects > 0)
+                entries.Add((lastConnectTicks, () => log(FormatConnectMessage(connects, lastConnectPeerId, reportSeconds))));
+            if (disconnects > 0)
+                entries.Add((lastDisconnectTicks, () => log(FormatDisconnectMessage(disconnects, lastDisconnectPeerId, reportSeconds))));
+            if (timeouts > 0)
+                entries.Add((lastTimeoutTicks, () => log(FormatTimeoutMessage(timeouts, lastTimeoutPeerId, reportSeconds))));
+
+            entries.Sort(static (a, b) => a.Tick.CompareTo(b.Tick));
+            foreach (var entry in entries)
+                entry.LogAction();
+        }
+
+        private void MarkEvent(ref long lastEventKindTicks)
+        {
+            long now = Stopwatch.GetTimestamp();
+            if (Interlocked.CompareExchange(ref _eventWindowStartTicks, now, 0) == 0)
+                Interlocked.Exchange(ref _eventLastEventTicks, now);
+            else
+                Interlocked.Exchange(ref _eventLastEventTicks, now);
+
+            Interlocked.Exchange(ref lastEventKindTicks, now);
+        }
+
+        private static string FormatCount(string singular, int count)
+        {
+            if (count == 1)
+                return $"1 {singular}";
+
+            return $"{count} {singular}s";
+        }
+
+        private static string FormatLastSuffix(int count, double seconds)
+        {
+            if (count == 1)
+                return string.Empty;
+
+            return $" (last {seconds:0.##}s)";
+        }
+
+        private static string FormatConnectMessage(int count, long peerId, double seconds)
+        {
+            if (count == 1)
+                return peerId > 0 ? $"Connected to server as peer {peerId}" : "Connected to server";
+
+            return $"{FormatCount("connect event", count)}{FormatLastSuffix(count, seconds)}";
+        }
+
+        private static string FormatDisconnectMessage(int count, long peerId, double seconds)
+        {
+            if (count == 1)
+                return peerId > 0 ? $"Disconnected from server (peer {peerId})" : "Disconnected from server";
+
+            return $"{FormatCount("disconnect event", count)}{FormatLastSuffix(count, seconds)}";
+        }
+
+        private static string FormatTimeoutMessage(int count, long peerId, double seconds)
+        {
+            if (count == 1)
+                return peerId > 0 ? $"Connection to server timed out (peer {peerId})" : "Connection to server timed out";
+
+            return $"{FormatCount("timeout event", count)}{FormatLastSuffix(count, seconds)}";
+        }
+
+    }
+
+    protected void NotifyClientStarting()
+    {
+        // Intentionally no-op to avoid noisy client lifecycle logs.
+    }
+
+    private void NotifyClientStopped()
+    {
+        // Intentionally no-op to avoid noisy client lifecycle logs.
     }
 
     private void TryInvoke(Action action)

@@ -1,5 +1,6 @@
 using Framework.Netcode;
 using Godot;
+using GodotUtils;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -10,13 +11,13 @@ public partial class World
 {
     private sealed class WorldStressTest
     {
-        private const int DefaultTargetClients = 10;
-        private const float DefaultSpawnIntervalSeconds = 0.3f;
-        private const float DefaultCircleRadius = 90f;
+        private const int DefaultTargetClients = 250;
+        private const float DefaultSpawnIntervalSeconds = 0.01f;
+        private const float DefaultCircleRadius = 200f;
         private const float DefaultAngularSpeed = Mathf.Pi * 2f / 6f;
         private const float DefaultSendIntervalSeconds = 0.05f;
         private const ushort DefaultPort = 25565;
-        private const int DefaultMaxClients = 100;
+        private const int DefaultMaxClients = 500;
 
         private readonly World _world;
         private readonly List<BotClient> _bots = [];
@@ -60,6 +61,8 @@ public partial class World
             _portInput = _world.GetNode<LineEdit>("%StressPort");
             _maxClientsInput = _world.GetNode<LineEdit>("%StressMaxClients");
 
+            SetUiDefaults();
+
             _startButton.Pressed += OnStartPressed;
             _stopButton.Pressed += OnStopPressed;
         }
@@ -73,6 +76,7 @@ public partial class World
             _paused = false;
             _spawnAccumulator = 0f;
             ApplySettingsFromUi();
+            ApplyRunningServerSettings();
             _world.SetProcess(true);
             if (ShouldRestartServer())
             {
@@ -164,6 +168,22 @@ public partial class World
             StartServerWithSettings();
         }
 
+        private void ApplyRunningServerSettings()
+        {
+            if (IsServerRunning())
+            {
+                Net net = _world._netControlPanel?.Net;
+                if (net != null)
+                {
+                    _port = net.ServerPort;
+                    _maxClients = net.ServerMaxClients;
+                }
+
+                if (_targetClients > _maxClients)
+                    _targetClients = _maxClients;
+            }
+        }
+
         private void EnsureLocalClientRunning()
         {
             Net net = _world._netControlPanel?.Net;
@@ -201,7 +221,7 @@ public partial class World
                 return false;
 
             if (!_serverStartedByStressTest)
-                return true;
+                return false;
 
             if (_lastServerPort != _port || _lastServerMaxClients != _maxClients)
                 return true;
@@ -213,6 +233,9 @@ public partial class World
         {
             Net net = _world._netControlPanel?.Net;
             if (net?.Server == null)
+                return;
+
+            if (!_serverStartedByStressTest)
                 return;
 
             _serverRestartPending = true;
@@ -233,12 +256,25 @@ public partial class World
 
         private void OnStartPressed()
         {
+            _world.GetTree().UnfocusCurrentControl();
             Start();
         }
 
         private void OnStopPressed()
         {
+            _world.GetTree().UnfocusCurrentControl();
             Stop();
+        }
+
+        private void SetUiDefaults()
+        {
+            _targetClientsInput.Text = DefaultTargetClients.ToString(CultureInfo.InvariantCulture);
+            _spawnIntervalInput.Text = DefaultSpawnIntervalSeconds.ToString(CultureInfo.InvariantCulture);
+            _circleRadiusInput.Text = DefaultCircleRadius.ToString(CultureInfo.InvariantCulture);
+            _angularSpeedInput.Text = DefaultAngularSpeed.ToString(CultureInfo.InvariantCulture);
+            _sendIntervalInput.Text = DefaultSendIntervalSeconds.ToString(CultureInfo.InvariantCulture);
+            _portInput.Text = DefaultPort.ToString(CultureInfo.InvariantCulture);
+            _maxClientsInput.Text = DefaultMaxClients.ToString(CultureInfo.InvariantCulture);
         }
 
         private void ApplySettingsFromUi()

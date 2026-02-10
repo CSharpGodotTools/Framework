@@ -57,7 +57,7 @@ public abstract class GodotClient : ENetClient
     {
         Options = options ?? new ENetOptions();
 
-        Log("Client is starting");
+        NotifyClientStarting();
         InitIgnoredPackets(ignoredPackets);
 
         Interlocked.Exchange(ref _running, 1);

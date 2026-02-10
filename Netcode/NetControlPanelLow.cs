@@ -12,6 +12,8 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
 {
     // API
     public Net Net { get; private set; }
+    public ushort CurrentPort => _port;
+    public int CurrentMaxClients => DefaultMaxClients;
 
     // Exports
     [Export] private LineEdit _usernameLineEdit;

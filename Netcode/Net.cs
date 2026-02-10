@@ -15,6 +15,8 @@ public class Net
 
     public GodotServer Server { get; private set; }
     public GodotClient Client { get; private set; }
+    public ushort ServerPort { get; private set; }
+    public int ServerMaxClients { get; private set; }
 
     private const int ShutdownPollIntervalMs = 50;
 
@@ -58,6 +60,8 @@ public class Net
             return;
         }
 
+        ServerPort = port;
+        ServerMaxClients = maxClients;
         Server = _serverFactory.CreateServer();
         ServerCreated?.Invoke(Server);
         Server.Start(port, maxClients, options);
