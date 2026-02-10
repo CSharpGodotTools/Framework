@@ -1,5 +1,6 @@
 using Framework.Netcode;
 using Godot;
+using GodotUtils;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -235,11 +236,13 @@ public partial class World
 
         private void OnStartPressed()
         {
+            _world.GetTree().UnfocusCurrentControl();
             Start();
         }
 
         private void OnStopPressed()
         {
+            _world.GetTree().UnfocusCurrentControl();
             Stop();
         }
 
