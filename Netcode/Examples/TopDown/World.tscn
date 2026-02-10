@@ -78,3 +78,42 @@ text = "127.0.0.1"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Valk"
+
+[node name="Stress Test Interface" type="PanelContainer" parent="CanvasLayer" unique_id=279554145]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -40.0
+offset_right = 40.0
+grow_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/Stress Test Interface" unique_id=1593357506]
+layout_mode = 2
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 5
+theme_override_constants/margin_bottom = 5
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/Stress Test Interface/Margin" unique_id=1537152856]
+layout_mode = 2
+
+[node name="StartStressTest" type="Button" parent="CanvasLayer/Stress Test Interface/Margin/VBox" unique_id=298884260]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Start Stress Test"
+
+[node name="StopStressTest" type="Button" parent="CanvasLayer/Stress Test Interface/Margin/VBox" unique_id=1282322511]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Stop Stress Test"
+
+[node name="TargetClientsHBox" type="HBoxContainer" parent="CanvasLayer/Stress Test Interface/Margin/VBox" unique_id=1398343313]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Stress Test Interface/Margin/VBox/TargetClientsHBox" unique_id=1815662368]
+layout_mode = 2
+text = "Bots:"
+
+[node name="TargetClients" type="LineEdit" parent="CanvasLayer/Stress Test Interface/Margin/VBox/TargetClientsHBox" unique_id=902379042]
+unique_name_in_owner = true
+layout_mode = 2
