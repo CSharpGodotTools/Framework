@@ -1,7 +1,7 @@
 using ENet;
 using GodotUtils;
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,11 +9,16 @@ namespace Framework.Netcode.Client;
 
 public abstract class GodotClient : ENetClient
 {
-    private readonly static Dictionary<Type, Action<ServerPacket>> _serverPacketHandlers = [];
+    private readonly ConcurrentDictionary<Type, Action<ServerPacket>> _serverPacketHandlers = new();
 
-    protected static void RegisterPacketHandler<TPacket>(Action<TPacket> handler)
+    protected void RegisterPacketHandler<TPacket>(Action<TPacket> handler)
         where TPacket : ServerPacket
     {
+        if (handler == null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
+
         _serverPacketHandlers[typeof(TPacket)] = (packet) => handler((TPacket)packet);
     }
 
@@ -50,17 +55,21 @@ public abstract class GodotClient : ENetClient
     /// </summary>
     public async Task Connect(string ip, ushort port, ENetOptions options = default, params Type[] ignoredPackets)
     {
-        Options = options;
+        Options = options ?? new ENetOptions();
 
         Log("Client is starting");
         InitIgnoredPackets(ignoredPackets);
 
-        _running = 1;
+        Interlocked.Exchange(ref _running, 1);
         CTS = new CancellationTokenSource();
         
         try
         {
             await Task.Run(() => WorkerThread(ip, port), CTS.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when stopping the client.
         }
         catch (Exception e)
         {
@@ -73,7 +82,7 @@ public abstract class GodotClient : ENetClient
     /// </summary>
     public sealed override void Stop()
     {
-        if (_running == 0)
+        if (!IsRunning)
         {
             Log("Client has stopped already");
             return;
@@ -116,12 +125,27 @@ public abstract class GodotClient : ENetClient
             ServerPacket serverPacket = packetData.HandlePacket;
             Type type = packetData.Type;
 
-            serverPacket.Read(packetReader);
-            packetReader.Dispose();
+            try
+            {
+                serverPacket.Read(packetReader);
 
-            _serverPacketHandlers[type](serverPacket);
+                if (!_serverPacketHandlers.TryGetValue(type, out Action<ServerPacket> handler))
+                {
+                    Log($"No handler registered for server packet {type.Name} (Ignoring)");
+                    continue;
+                }
 
-            LogReceivedPacket(type, serverPacket);
+                handler(serverPacket);
+                LogReceivedPacket(type, serverPacket);
+            }
+            catch (Exception e)
+            {
+                GameFramework.Logger.LogErr(e, "Client");
+            }
+            finally
+            {
+                packetReader.Dispose();
+            }
         }
     }
 
@@ -144,20 +168,32 @@ public abstract class GodotClient : ENetClient
             switch (opcode)
             {
                 case GodotOpcode.Connected:
-                    Connected?.Invoke();
+                    TryInvoke(() => Connected?.Invoke(), "Client");
                     break;
 
                 case GodotOpcode.Disconnected:
                 {
                     DisconnectOpcode disconnectOpcode = (DisconnectOpcode)cmd.Data[0];
-                    Disconnected?.Invoke(disconnectOpcode);
+                    TryInvoke(() => Disconnected?.Invoke(disconnectOpcode), "Client");
                     break;
                 }
 
                 case GodotOpcode.Timeout:
-                    Timedout?.Invoke();
+                    TryInvoke(() => Timedout?.Invoke(), "Client");
                     break;
             }
+        }
+    }
+
+    private static void TryInvoke(Action action, string tag)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception e)
+        {
+            GameFramework.Logger.LogErr(e, tag);
         }
     }
 }

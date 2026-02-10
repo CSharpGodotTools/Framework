@@ -26,11 +26,17 @@ public abstract class ENetLow
 
     protected virtual void OnDisconnectCleanup(Peer peer)
     {
-        CTS.Cancel();
+        CTS?.Cancel();
     }
 
     protected void InitIgnoredPackets(Type[] ignoredPackets)
     {
+        if (ignoredPackets == null || ignoredPackets.Length == 0)
+        {
+            IgnoredPackets = [];
+            return;
+        }
+
         IgnoredPackets = [.. ignoredPackets];
     }
 
@@ -76,7 +82,7 @@ public abstract class ENetLow
         }
 
         Host.Flush();
-        _running = 0;
+        Interlocked.Exchange(ref _running, 0);
     }
 
     protected abstract void ConcurrentQueues();

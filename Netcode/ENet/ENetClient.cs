@@ -2,6 +2,8 @@ using ENet;
 using System.Collections.Concurrent;
 using System;
 using GodotUtils;
+using System.IO;
+using System.Threading;
 
 namespace Framework.Netcode.Client;
 
@@ -61,10 +63,10 @@ public abstract class ENetClient : ENetLow
 
     protected sealed override void OnConnectLow(Event netEvent)
     {
-        _connected = 1;
+        Interlocked.Exchange(ref _connected, 1);
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Connected));
         Log("Client connected to server");
-        OnConnect(netEvent);
+        TryInvoke(() => OnConnect(netEvent));
     }
 
     protected sealed override void OnDisconnectLow(Event netEvent)
@@ -76,7 +78,7 @@ public abstract class ENetClient : ENetLow
         OnDisconnectCleanup(_peer);
 
         Log($"Received disconnect opcode from server: {opcode.ToString().ToLower()}");
-        OnDisconnect(netEvent);
+        TryInvoke(() => OnDisconnect(netEvent));
     }
 
     protected sealed override void OnTimeoutLow(Event netEvent)
@@ -87,7 +89,7 @@ public abstract class ENetClient : ENetLow
 
         OnDisconnectCleanup(_peer);
         Log("Client connection timeout");
-        OnTimeout(netEvent);
+        TryInvoke(() => OnTimeout(netEvent));
     }
 
     protected sealed override void OnReceiveLow(Event netEvent)
@@ -107,7 +109,7 @@ public abstract class ENetClient : ENetLow
     protected sealed override void OnDisconnectCleanup(Peer peer)
     {
         base.OnDisconnectCleanup(peer);
-        _connected = 0;
+        Interlocked.Exchange(ref _connected, 0);
     }
 
     protected void WorkerThread(string ip, ushort port)
@@ -154,9 +156,25 @@ public abstract class ENetClient : ENetLow
         while (_incoming.TryDequeue(out Packet packet))
         {
             PacketReader packetReader = new(packet);
-            byte opcode = packetReader.ReadByte();
+            Type type = null;
 
-            Type type = PacketRegistry.ServerPacketTypes[opcode];
+            try
+            {
+                byte opcode = packetReader.ReadByte();
+                if (!PacketRegistry.ServerPacketTypes.TryGetValue(opcode, out type))
+                {
+                    Log($"Received malformed opcode: {opcode} (Ignoring)");
+                    packetReader.Dispose();
+                    continue;
+                }
+            }
+            catch (EndOfStreamException e)
+            {
+                Log($"Received malformed packet: {e.Message} (Ignoring)");
+                packetReader.Dispose();
+                continue;
+            }
+
             ServerPacket handlePacket = PacketRegistry.ServerPacketInfo[type].Instance;
 
             /*
@@ -178,8 +196,15 @@ public abstract class ENetClient : ENetLow
         {
             Type type = clientPacket.GetType();
 
-            LogOutgoingPacket(type, clientPacket);
-            clientPacket.Send();
+            try
+            {
+                LogOutgoingPacket(type, clientPacket);
+                clientPacket.Send();
+            }
+            catch (Exception e)
+            {
+                GameFramework.Logger.LogErr(e, "Client");
+            }
         }
     }
 
@@ -197,5 +222,17 @@ public abstract class ENetClient : ENetLow
         Address address = new() { Port = port };
         address.SetHost(ip);
         return address;
+    }
+
+    private void TryInvoke(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception e)
+        {
+            GameFramework.Logger.LogErr(e, "Client");
+        }
     }
 }

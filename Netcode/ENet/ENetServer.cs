@@ -1,11 +1,10 @@
 using ENet;
-using Framework.Netcode.Examples.Topdown;
-using Godot;
 using GodotUtils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 namespace Framework.Netcode.Server;
 
@@ -17,11 +16,16 @@ public abstract class ENetServer : ENetLow
     private readonly ConcurrentQueue<(Packet, Peer)> _incoming = new();
     private readonly ConcurrentQueue<ServerPacket> _outgoing = new();
 
-    private readonly static Dictionary<Type, Action<ClientPacket, Peer>> _clientPacketHandlers = [];
+    private readonly ConcurrentDictionary<Type, Action<ClientPacket, Peer>> _clientPacketHandlers = new();
 
-    protected static void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler) 
+    protected void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler) 
         where TPacket : ClientPacket
     {
+        if (handler == null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
+
         _clientPacketHandlers[typeof(TPacket)] = (packet, peer) => handler((TPacket)packet, peer);
     }
 
@@ -70,14 +74,14 @@ public abstract class ENetServer : ENetLow
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client disconnected - ID: " + netEvent.Peer.ID);
-        OnPeerDisconnect(netEvent);
+        TryInvokePeerDisconnect(netEvent);
     }
 
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         Log("Client timeout - ID: " + netEvent.Peer.ID);
-        OnPeerDisconnect(netEvent);
+        TryInvokePeerDisconnect(netEvent);
     }
 
     protected sealed override void OnReceiveLow(Event netEvent)
@@ -101,7 +105,7 @@ public abstract class ENetServer : ENetLow
         if (Host == null)
             return;
 
-        _running = 1;
+        Interlocked.Exchange(ref _running, 1);
         Log("Server is running");
 
         try
@@ -218,7 +222,22 @@ public abstract class ENetServer : ENetLow
                     continue;
                 }
 
-                _clientPacketHandlers[type](clientPacket, packetPeer.Peer);
+                if (!_clientPacketHandlers.TryGetValue(type, out Action<ClientPacket, Peer> handler))
+                {
+                    Log($"No handler registered for client packet {type.Name} (Ignoring)");
+                    continue;
+                }
+
+                try
+                {
+                    handler(clientPacket, packetPeer.Peer);
+                }
+                catch (Exception e)
+                {
+                    GameFramework.Logger.LogErr(e, "Server");
+                    continue;
+                }
+
                 LogPacketReceived(type, packetPeer.Peer.ID, clientPacket);
             }
             finally
@@ -269,21 +288,40 @@ public abstract class ENetServer : ENetLow
         }
     }
 
+    private void TryInvokePeerDisconnect(Event netEvent)
+    {
+        try
+        {
+            OnPeerDisconnect(netEvent);
+        }
+        catch (Exception e)
+        {
+            GameFramework.Logger.LogErr(e, "Server");
+        }
+    }
+
     private void ProcessOutgoingPackets()
     {
         while (_outgoing.TryDequeue(out ServerPacket packet))
         {
-            SendType sendType = packet.GetSendType();
-
-            switch (sendType)
+            try
             {
-                case SendType.Peer:
-                    packet.Send();
-                    break;
+                SendType sendType = packet.GetSendType();
 
-                case SendType.Broadcast:
-                    packet.Broadcast(Host);
-                    break;
+                switch (sendType)
+                {
+                    case SendType.Peer:
+                        packet.Send();
+                        break;
+
+                    case SendType.Broadcast:
+                        packet.Broadcast(Host);
+                        break;
+                }
+            }
+            catch (Exception e)
+            {
+                GameFramework.Logger.LogErr(e, "Server");
             }
         }
     }

@@ -22,13 +22,13 @@ public abstract class GodotServer : ENetServer
     /// </summary>
     public async void Start(ushort port, int maxClients, ENetOptions options, params Type[] ignoredPackets)
     {
-        if (_running == 1)
+        if (IsRunning)
         {
             Log("Server is running already");
             return;
         }
 
-        Options = options;
+        Options = options ?? new ENetOptions();
         InitIgnoredPackets(ignoredPackets);
 
         CTS = new CancellationTokenSource();
@@ -36,6 +36,10 @@ public abstract class GodotServer : ENetServer
         try
         {
             await Task.Run(() => WorkerThread(port, maxClients), CTS.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when stopping the server.
         }
         catch (Exception e)
         {
@@ -72,7 +76,7 @@ public abstract class GodotServer : ENetServer
     /// </summary>
     public sealed override void Stop()
     {
-        if (_running == 0)
+        if (!IsRunning)
         {
             Log("Server has stopped already");
             return;
