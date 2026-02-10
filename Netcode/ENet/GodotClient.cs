@@ -151,12 +151,11 @@ public abstract class GodotClient : ENetClient
 
     private void LogReceivedPacket(Type type, ServerPacket packet)
     {
-        if (!IgnoredPackets.Contains(type) && Options.PrintPacketReceived)
-        {
-            Log(
-                $"Received packet: {type.Name}{(Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : "")}"
-            );
-        }
+        if (!Options.PrintPacketReceived || IgnoredPackets.Contains(type))
+            return;
+
+        string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
+        Log($"Received packet: {type.Name}{packetData}");
     }
 
     private void ProcessGodotCommands()

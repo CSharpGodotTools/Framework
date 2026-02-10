@@ -280,12 +280,11 @@ public abstract class ENetServer : ENetLow
 
     private void LogPacketReceived(Type type, uint clientId, ClientPacket packet)
     {
-        if (!IgnoredPackets.Contains(type) && Options.PrintPacketReceived)
-        {
-            string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
+        if (!Options.PrintPacketReceived || IgnoredPackets.Contains(type))
+            return;
 
-            Log($"Received packet: {type.Name} from client {clientId}{packetData}");
-        }
+        string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
+        Log($"Received packet: {type.Name} from client {clientId}{packetData}");
     }
 
     private void TryInvokePeerDisconnect(Event netEvent)

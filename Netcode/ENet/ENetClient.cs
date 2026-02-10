@@ -210,11 +210,11 @@ public abstract class ENetClient : ENetLow
 
     private void LogOutgoingPacket(Type type, ClientPacket clientPacket)
     {
-        if (!IgnoredPackets.Contains(type) && Options.PrintPacketSent)
-        {
-            Log($"Sent packet: {type.Name} {FormatByteSize(clientPacket.GetSize())}" +
-                $"{(Options.PrintPacketData ? $"\n{clientPacket.ToFormattedString()}" : "")}");
-        }
+        if (!Options.PrintPacketSent || IgnoredPackets.Contains(type))
+            return;
+
+        string packetData = Options.PrintPacketData ? $"\n{clientPacket.ToFormattedString()}" : string.Empty;
+        Log($"Sent packet: {type.Name} {FormatByteSize(clientPacket.GetSize())}{packetData}");
     }
 
     private static Address CreateAddress(string ip, ushort port)

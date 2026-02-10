@@ -93,10 +93,10 @@ public abstract class GodotServer : ENetServer
 
         Type type = packet.GetType();
 
-        if (!IgnoredPackets.Contains(type) && Options.PrintPacketSent)
+        if (Options.PrintPacketSent && !IgnoredPackets.Contains(type))
         {
-            Log($"Sending packet {type.Name} {FormatByteSize(packet.GetSize())}to client {peer.ID}" +
-                $"{(Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : "")}");
+            string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
+            Log($"Sending packet {type.Name} {FormatByteSize(packet.GetSize())}to client {peer.ID}{packetData}");
         }
 
         packet.SetSendType(SendType.Peer);
@@ -111,11 +111,11 @@ public abstract class GodotServer : ENetServer
 
         Type type = packet.GetType();
 
-        if (!IgnoredPackets.Contains(type) && Options.PrintPacketSent)
+        if (Options.PrintPacketSent && !IgnoredPackets.Contains(type))
         {
             string byteSize = GetByteSizeString(packet);
             string peerDescription = GetPeerDescription(clients);
-            string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : "";
+            string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
 
             string message = $"Broadcasting packet {type.Name} {byteSize} {peerDescription}{packetData}";
 
