@@ -3,6 +3,7 @@ using GodotUtils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
@@ -34,6 +35,14 @@ public abstract class ENetServer : ENetLow
     /// </summary>
     private readonly Dictionary<uint, Peer> _peers = [];
 
+    private const double ConnectionLogQuietGapSeconds = 0.5;
+    private const double ConnectionLogMaxWindowSeconds = 5.0;
+    private int _connectedCount;
+    private int _disconnectedCount;
+    private int _timeoutCount;
+    private long _connectionWindowStartTicks;
+    private long _connectionLastEventTicks;
+
     /// <summary>
     /// Log a message as the server. This function is thread safe.
     /// </summary>
@@ -60,12 +69,14 @@ public abstract class ENetServer : ENetLow
         ProcessEnetCommands();
         ProcessIncomingPackets();
         ProcessOutgoingPackets();
+        FlushConnectionLogs();
     }
 
     protected sealed override void OnConnectLow(Event netEvent)
     {
         _peers[netEvent.Peer.ID] = netEvent.Peer;
-        Log("Client connected - ID: " + netEvent.Peer.ID);
+        _connectedCount++;
+        MarkConnectionEvent();
     }
 
     protected virtual void OnPeerDisconnect(Event netEvent) { }
@@ -73,15 +84,17 @@ public abstract class ENetServer : ENetLow
     protected sealed override void OnDisconnectLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
-        Log("Client disconnected - ID: " + netEvent.Peer.ID);
         TryInvokePeerDisconnect(netEvent);
+        _disconnectedCount++;
+        MarkConnectionEvent();
     }
 
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
-        Log("Client timeout - ID: " + netEvent.Peer.ID);
         TryInvokePeerDisconnect(netEvent);
+        _timeoutCount++;
+        MarkConnectionEvent();
     }
 
     protected sealed override void OnReceiveLow(Event netEvent)
@@ -323,5 +336,51 @@ public abstract class ENetServer : ENetLow
                 GameFramework.Logger.LogErr(e, "Server");
             }
         }
+    }
+
+    private void FlushConnectionLogs()
+    {
+        if (_connectedCount == 0 && _disconnectedCount == 0 && _timeoutCount == 0)
+            return;
+
+        if (_connectionWindowStartTicks == 0 || _connectionLastEventTicks == 0)
+            return;
+
+        long now = Stopwatch.GetTimestamp();
+        double sinceLast = (now - _connectionLastEventTicks) / (double)Stopwatch.Frequency;
+        double windowSeconds = (_connectionLastEventTicks - _connectionWindowStartTicks) / (double)Stopwatch.Frequency;
+
+        if (sinceLast < ConnectionLogQuietGapSeconds && windowSeconds < ConnectionLogMaxWindowSeconds)
+            return;
+
+        int connects = _connectedCount;
+        int disconnects = _disconnectedCount;
+        int timeouts = _timeoutCount;
+
+        _connectedCount = 0;
+        _disconnectedCount = 0;
+        _timeoutCount = 0;
+        _connectionWindowStartTicks = 0;
+        _connectionLastEventTicks = 0;
+
+        double reportSeconds = Math.Max(windowSeconds, 0.01);
+
+        if (connects > 0)
+            Log($"{connects} client{(connects == 1 ? "" : "s")} connected (last {reportSeconds:0.##}s)");
+
+        if (disconnects > 0)
+            Log($"{disconnects} client{(disconnects == 1 ? "" : "s")} disconnected (last {reportSeconds:0.##}s)");
+
+        if (timeouts > 0)
+            Log($"{timeouts} client{(timeouts == 1 ? "" : "s")} timed out (last {reportSeconds:0.##}s)");
+    }
+
+    private void MarkConnectionEvent()
+    {
+        long now = Stopwatch.GetTimestamp();
+        if (_connectionWindowStartTicks == 0)
+            _connectionWindowStartTicks = now;
+
+        _connectionLastEventTicks = now;
     }
 }

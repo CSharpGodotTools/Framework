@@ -2,6 +2,7 @@ using ENet;
 using System.Collections.Concurrent;
 using System;
 using GodotUtils;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
@@ -18,6 +19,20 @@ public abstract class ENetClient : ENetLow
 
     protected Peer _peer;
     protected long _connected;
+
+    private const double ConnectionLogQuietGapSeconds = 0.5;
+    private const double ConnectionLogMaxWindowSeconds = 5.0;
+    private const double LifecycleLogQuietGapSeconds = 0.5;
+    private const double LifecycleLogMaxWindowSeconds = 5.0;
+    private static int s_connectedCount;
+    private static int s_disconnectedCount;
+    private static int s_timeoutCount;
+    private static long s_connectionWindowStartTicks;
+    private static long s_connectionLastEventTicks;
+    private static int s_startedCount;
+    private static int s_stoppedCount;
+    private static long s_lifecycleWindowStartTicks;
+    private static long s_lifecycleLastEventTicks;
 
     // Config
     /// <summary>
@@ -55,6 +70,8 @@ public abstract class ENetClient : ENetLow
         ProcessENetCommands();
         ProcessIncomingPackets();
         ProcessOutgoingPackets();
+        FlushConnectionLogs(force: false);
+        FlushLifecycleLogs(force: false);
     }
 
     protected virtual void OnConnect(Event netEvent) { }
@@ -65,7 +82,8 @@ public abstract class ENetClient : ENetLow
     {
         Interlocked.Exchange(ref _connected, 1);
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Connected));
-        Log("Client connected to server");
+        Interlocked.Increment(ref s_connectedCount);
+        MarkConnectionEvent();
         TryInvoke(() => OnConnect(netEvent));
     }
 
@@ -77,7 +95,8 @@ public abstract class ENetClient : ENetLow
         
         OnDisconnectCleanup(_peer);
 
-        Log($"Received disconnect opcode from server: {opcode.ToString().ToLower()}");
+        Interlocked.Increment(ref s_disconnectedCount);
+        MarkConnectionEvent();
         TryInvoke(() => OnDisconnect(netEvent));
     }
 
@@ -88,7 +107,8 @@ public abstract class ENetClient : ENetLow
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Timeout));
 
         OnDisconnectCleanup(_peer);
-        Log("Client connection timeout");
+        Interlocked.Increment(ref s_timeoutCount);
+        MarkConnectionEvent();
         TryInvoke(() => OnTimeout(netEvent));
     }
 
@@ -130,7 +150,7 @@ public abstract class ENetClient : ENetLow
             Host.Dispose();
         }
         
-        Log("Client has stopped");
+        NotifyClientStopped();
     }
 
     private void ProcessENetCommands()
@@ -222,6 +242,117 @@ public abstract class ENetClient : ENetLow
         Address address = new() { Port = port };
         address.SetHost(ip);
         return address;
+    }
+
+    private void FlushConnectionLogs(bool force)
+    {
+        if (Volatile.Read(ref s_connectedCount) == 0 &&
+            Volatile.Read(ref s_disconnectedCount) == 0 &&
+            Volatile.Read(ref s_timeoutCount) == 0)
+            return;
+
+        long startTicks = Interlocked.Read(ref s_connectionWindowStartTicks);
+        long lastEventTicks = Interlocked.Read(ref s_connectionLastEventTicks);
+        if (startTicks == 0 || lastEventTicks == 0)
+            return;
+
+        long now = Stopwatch.GetTimestamp();
+        double sinceLast = (now - lastEventTicks) / (double)Stopwatch.Frequency;
+        double windowSeconds = (lastEventTicks - startTicks) / (double)Stopwatch.Frequency;
+
+        if (!force && sinceLast < ConnectionLogQuietGapSeconds && windowSeconds < ConnectionLogMaxWindowSeconds)
+            return;
+
+        if (!force && Interlocked.CompareExchange(ref s_connectionLastEventTicks, 0, lastEventTicks) != lastEventTicks)
+            return;
+
+        int connects = Interlocked.Exchange(ref s_connectedCount, 0);
+        int disconnects = Interlocked.Exchange(ref s_disconnectedCount, 0);
+        int timeouts = Interlocked.Exchange(ref s_timeoutCount, 0);
+        if (force)
+            Interlocked.Exchange(ref s_connectionLastEventTicks, 0);
+
+        Interlocked.CompareExchange(ref s_connectionWindowStartTicks, 0, startTicks);
+
+        double reportSeconds = Math.Max(windowSeconds, 0.01);
+
+        if (connects > 0)
+            Log($"{connects} connect event{(connects == 1 ? "" : "s")} (last {reportSeconds:0.##}s)");
+
+        if (disconnects > 0)
+            Log($"{disconnects} disconnect event{(disconnects == 1 ? "" : "s")} (last {reportSeconds:0.##}s)");
+
+        if (timeouts > 0)
+            Log($"{timeouts} timeout event{(timeouts == 1 ? "" : "s")} (last {reportSeconds:0.##}s)");
+    }
+
+    private void FlushLifecycleLogs(bool force)
+    {
+        int startedSnapshot = Volatile.Read(ref s_startedCount);
+        int stoppedSnapshot = Volatile.Read(ref s_stoppedCount);
+        if (startedSnapshot == 0 && stoppedSnapshot == 0)
+            return;
+
+        long startTicks = Interlocked.Read(ref s_lifecycleWindowStartTicks);
+        long lastEventTicks = Interlocked.Read(ref s_lifecycleLastEventTicks);
+        if (startTicks == 0 || lastEventTicks == 0)
+            return;
+
+        long now = Stopwatch.GetTimestamp();
+        double sinceLast = (now - lastEventTicks) / (double)Stopwatch.Frequency;
+        double windowSeconds = (lastEventTicks - startTicks) / (double)Stopwatch.Frequency;
+
+        if (!force && sinceLast < LifecycleLogQuietGapSeconds && windowSeconds < LifecycleLogMaxWindowSeconds)
+            return;
+
+        if (!force && Interlocked.CompareExchange(ref s_lifecycleLastEventTicks, 0, lastEventTicks) != lastEventTicks)
+            return;
+
+        int started = Interlocked.Exchange(ref s_startedCount, 0);
+        int stopped = Interlocked.Exchange(ref s_stoppedCount, 0);
+
+        if (force)
+            Interlocked.Exchange(ref s_lifecycleLastEventTicks, 0);
+
+        Interlocked.CompareExchange(ref s_lifecycleWindowStartTicks, 0, startTicks);
+
+        double reportSeconds = Math.Max(windowSeconds, 0.01);
+
+        if (started > 0)
+            Log($"{started} client{(started == 1 ? "" : "s")} started (last {reportSeconds:0.##}s)");
+
+        if (stopped > 0)
+            Log($"{stopped} client{(stopped == 1 ? "" : "s")} stopped (last {reportSeconds:0.##}s)");
+    }
+
+    protected void NotifyClientStarting()
+    {
+        Interlocked.Increment(ref s_startedCount);
+        MarkLifecycleEvent();
+    }
+
+    private void NotifyClientStopped()
+    {
+        Interlocked.Increment(ref s_stoppedCount);
+        MarkLifecycleEvent();
+    }
+
+    private static void MarkConnectionEvent()
+    {
+        long now = Stopwatch.GetTimestamp();
+        if (Interlocked.CompareExchange(ref s_connectionWindowStartTicks, now, 0) == 0)
+            Interlocked.Exchange(ref s_connectionLastEventTicks, now);
+        else
+            Interlocked.Exchange(ref s_connectionLastEventTicks, now);
+    }
+
+    private static void MarkLifecycleEvent()
+    {
+        long now = Stopwatch.GetTimestamp();
+        if (Interlocked.CompareExchange(ref s_lifecycleWindowStartTicks, now, 0) == 0)
+            Interlocked.Exchange(ref s_lifecycleLastEventTicks, now);
+        else
+            Interlocked.Exchange(ref s_lifecycleLastEventTicks, now);
     }
 
     private void TryInvoke(Action action)
