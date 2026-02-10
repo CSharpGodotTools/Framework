@@ -1,6 +1,7 @@
 using Framework.Netcode;
 using Godot;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 
 namespace Framework.Netcode.Examples.Topdown;
@@ -9,16 +10,33 @@ public partial class World
 {
     private sealed class WorldStressTest
     {
-        private const int TargetClients = 10;
-        private const float SpawnIntervalSeconds = 0.3f;
-        private const float CircleRadius = 90f;
-        private const float AngularSpeed = Mathf.Pi * 2f / 6f;
-        private const float SendIntervalSeconds = 0.05f;
+        private const int DefaultTargetClients = 10;
+        private const float DefaultSpawnIntervalSeconds = 0.3f;
+        private const float DefaultCircleRadius = 90f;
+        private const float DefaultAngularSpeed = Mathf.Pi * 2f / 6f;
+        private const float DefaultSendIntervalSeconds = 0.05f;
         private const ushort DefaultPort = 25565;
         private const int DefaultMaxClients = 100;
 
         private readonly World _world;
         private readonly List<BotClient> _bots = [];
+        private readonly Button _startButton;
+        private readonly Button _stopButton;
+        private readonly LineEdit _targetClientsInput;
+        private readonly LineEdit _spawnIntervalInput;
+        private readonly LineEdit _circleRadiusInput;
+        private readonly LineEdit _angularSpeedInput;
+        private readonly LineEdit _sendIntervalInput;
+        private readonly LineEdit _portInput;
+        private readonly LineEdit _maxClientsInput;
+
+        private int _targetClients = DefaultTargetClients;
+        private float _spawnIntervalSeconds = DefaultSpawnIntervalSeconds;
+        private float _circleRadius = DefaultCircleRadius;
+        private float _angularSpeed = DefaultAngularSpeed;
+        private float _sendIntervalSeconds = DefaultSendIntervalSeconds;
+        private ushort _port = DefaultPort;
+        private int _maxClients = DefaultMaxClients;
         private float _spawnAccumulator;
         private bool _started;
         private bool _paused;
@@ -28,6 +46,18 @@ public partial class World
         public WorldStressTest(World world)
         {
             _world = world;
+            _startButton = _world.GetNode<Button>("%StartStressTest");
+            _stopButton = _world.GetNode<Button>("%StopStressTest");
+            _targetClientsInput = _world.GetNode<LineEdit>("%TargetClients");
+            _spawnIntervalInput = _world.GetNode<LineEdit>("%SpawnInterval");
+            _circleRadiusInput = _world.GetNode<LineEdit>("%CircleRadius");
+            _angularSpeedInput = _world.GetNode<LineEdit>("%AngularSpeed");
+            _sendIntervalInput = _world.GetNode<LineEdit>("%SendInterval");
+            _portInput = _world.GetNode<LineEdit>("%StressPort");
+            _maxClientsInput = _world.GetNode<LineEdit>("%StressMaxClients");
+
+            _startButton.Pressed += OnStartPressed;
+            _stopButton.Pressed += OnStopPressed;
         }
 
         public void Start()
@@ -36,6 +66,7 @@ public partial class World
                 return;
 
             _started = true;
+            ApplySettingsFromUi();
             EnsureServerRunning();
             EnsureLocalClientRunning();
             SpawnBot();
@@ -65,9 +96,9 @@ public partial class World
             }
 
             _spawnAccumulator += deltaSeconds;
-            while (_bots.Count < TargetClients && _spawnAccumulator >= SpawnIntervalSeconds)
+            while (_bots.Count < _targetClients && _spawnAccumulator >= _spawnIntervalSeconds)
             {
-                _spawnAccumulator -= SpawnIntervalSeconds;
+                _spawnAccumulator -= _spawnIntervalSeconds;
                 SpawnBot();
             }
 
@@ -86,10 +117,10 @@ public partial class World
 
         private void SpawnBot()
         {
-            if (_bots.Count >= TargetClients)
+            if (_bots.Count >= _targetClients)
                 return;
 
-            BotClient bot = new(_world, _world.GetScreenCenter());
+            BotClient bot = new(_world, _world.GetScreenCenter(), _circleRadius, _angularSpeed, _sendIntervalSeconds, _port);
             _bots.Add(bot);
         }
 
@@ -99,7 +130,7 @@ public partial class World
             if (net?.Server == null || net.Server.IsRunning)
                 return;
 
-            net.StartServer(DefaultPort, DefaultMaxClients, CreateSilentOptions());
+            net.StartServer(_port, _maxClients, CreateSilentOptions());
         }
 
         private void EnsureLocalClientRunning()
@@ -108,7 +139,7 @@ public partial class World
             if (net?.Client == null || net.Client.IsRunning)
                 return;
 
-            Task startTask = net.StartClient("127.0.0.1", DefaultPort);
+            Task startTask = net.StartClient("127.0.0.1", _port);
             _ = startTask.ContinueWith(
                 t => GameFramework.Logger.LogErr(t.Exception, "WorldStressTest"),
                 TaskContinuationOptions.OnlyOnFaulted);
@@ -130,6 +161,51 @@ public partial class World
             _bots.Clear();
         }
 
+        private void OnStartPressed()
+        {
+            Start();
+        }
+
+        private void OnStopPressed()
+        {
+            Stop();
+        }
+
+        private void ApplySettingsFromUi()
+        {
+            _targetClients = ReadInt(_targetClientsInput.Text, DefaultTargetClients, minValue: 1);
+            _spawnIntervalSeconds = ReadFloat(_spawnIntervalInput.Text, DefaultSpawnIntervalSeconds, minValue: 0.01f);
+            _circleRadius = ReadFloat(_circleRadiusInput.Text, DefaultCircleRadius, minValue: 0.01f);
+            _angularSpeed = ReadFloat(_angularSpeedInput.Text, DefaultAngularSpeed, minValue: 0.01f);
+            _sendIntervalSeconds = ReadFloat(_sendIntervalInput.Text, DefaultSendIntervalSeconds, minValue: 0.01f);
+            _port = ReadUShort(_portInput.Text, DefaultPort);
+            _maxClients = ReadInt(_maxClientsInput.Text, DefaultMaxClients, minValue: 1);
+        }
+
+        private static int ReadInt(string text, int fallback, int minValue)
+        {
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
+                return value < minValue ? minValue : value;
+
+            return fallback;
+        }
+
+        private static ushort ReadUShort(string text, ushort fallback)
+        {
+            if (ushort.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out ushort value))
+                return value;
+
+            return fallback;
+        }
+
+        private static float ReadFloat(string text, float fallback, float minValue)
+        {
+            if (float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out float value))
+                return value < minValue ? minValue : value;
+
+            return fallback;
+        }
+
         private static ENetOptions CreateSilentOptions()
         {
             return new ENetOptions
@@ -145,16 +221,24 @@ public partial class World
         {
             private readonly GameClient _client;
             private readonly Vector2 _center;
+            private readonly float _circleRadius;
+            private readonly float _angularSpeed;
+            private readonly float _sendIntervalSeconds;
+            private readonly ushort _port;
             private float _angle;
             private float _sendAccumulator;
             private bool _sentSpawn;
 
-            public BotClient(World world, Vector2 center)
+            public BotClient(World world, Vector2 center, float circleRadius, float angularSpeed, float sendIntervalSeconds, ushort port)
             {
                 _center = center;
+                _circleRadius = circleRadius;
+                _angularSpeed = angularSpeed;
+                _sendIntervalSeconds = sendIntervalSeconds;
+                _port = port;
                 _client = new GameClient();
 
-                Task connectTask = _client.Connect("127.0.0.1", DefaultPort, CreateSilentOptions());
+                Task connectTask = _client.Connect("127.0.0.1", _port, CreateSilentOptions());
                 _ = connectTask.ContinueWith(
                     t => GameFramework.Logger.LogErr(t.Exception, "WorldStressTest"),
                     TaskContinuationOptions.OnlyOnFaulted);
@@ -173,14 +257,14 @@ public partial class World
                     _sentSpawn = true;
                 }
 
-                _angle += AngularSpeed * deltaSeconds;
+                _angle += _angularSpeed * deltaSeconds;
                 _sendAccumulator += deltaSeconds;
 
-                if (_sendAccumulator < SendIntervalSeconds)
+                if (_sendAccumulator < _sendIntervalSeconds)
                     return;
 
                 _sendAccumulator = 0f;
-                Vector2 position = _center + new Vector2(Mathf.Cos(_angle), Mathf.Sin(_angle)) * CircleRadius;
+                Vector2 position = _center + new Vector2(Mathf.Cos(_angle), Mathf.Sin(_angle)) * _circleRadius;
                 _client.SendPosition(position);
             }
 
