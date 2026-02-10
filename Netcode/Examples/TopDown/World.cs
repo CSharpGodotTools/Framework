@@ -43,27 +43,9 @@ public partial class World : Node2D
 
     public override void _Process(double delta)
     {
-        Vector2 input = Input.GetVector(InputActions.MoveLeft, InputActions.MoveRight, InputActions.MoveUp, InputActions.MoveDown);
-        Vector2 velocity = input != Vector2.Zero ? input * MoveSpeed : Vector2.Zero;
-        
-        if (velocity.LengthSquared() > 0f)
-        {
-            _localPlayer.Position += velocity * (float)delta;
-        }
-
-        _sendAccumulator += (float)delta;
-
-        if (_sendAccumulator < SendIntervalSeconds)
-            return;
-
-        Vector2 position = _localPlayer.Position;
-
-        if ((position - _lastSentPosition).LengthSquared() < SendEpsilonSq)
-            return;
-
-        _sendAccumulator = 0f;
-        _lastSentPosition = position;
-        _client.SendPosition(position);
+        float deltaSeconds = (float)delta;
+        UpdateLocalMovement(deltaSeconds);
+        TrySendPosition(deltaSeconds);
     }
 
     private void OnClientCreated(GodotClient client)
@@ -93,11 +75,7 @@ public partial class World : Node2D
 
     private void OnClientConnected()
     {
-        EnsureLocalPlayer();
-        Vector2 center = GetScreenCenter();
-        _localPlayer.Position = center;
-        _lastSentPosition = center;
-        _sendAccumulator = 0f;
+        Vector2 center = InitializeLocalPlayerAtCenter();
         _client.SendPosition(center);
         TryEnableProcessing();
     }
@@ -112,6 +90,8 @@ public partial class World : Node2D
     {
         if (joined)
         {
+            // First joined packet we receive is our own server-assigned id.
+            // Cache it so we can distinguish local vs remote players.
             if (!_hasLocalId)
             {
                 _localId = id;
@@ -121,22 +101,26 @@ public partial class World : Node2D
                 return;
             }
 
+            // Ignore a redundant join message for ourselves.
             if (id == _localId)
             {
                 EnsureLocalPlayer();
                 return;
             }
 
+            // Any other join belongs to a remote player.
             EnsureRemotePlayer(id);
         }
         else
         {
+            // Remove player visuals on leave.
             RemovePlayer(id);
         }
     }
 
     private void OnPositionsUpdated(Dictionary<uint, Vector2> positions)
     {
+        // Apply authoritative positions for all known players.
         foreach (KeyValuePair<uint, Vector2> kvp in positions)
         {
             uint id = kvp.Key;
@@ -144,6 +128,7 @@ public partial class World : Node2D
 
             if (id == _localId)
             {
+                // Update local visuals too; server positions may include corrections.
                 if (_localPlayer != null)
                 {
                     _localPlayer.Position = position;
@@ -152,9 +137,34 @@ public partial class World : Node2D
                 continue;
             }
 
+            // Ensure remote placeholder exists, then update its position.
             ColorRect rect = EnsureRemotePlayer(id);
             rect.Position = position;
         }
+    }
+
+    private void UpdateLocalMovement(float deltaSeconds)
+    {
+        Vector2 input = Input.GetVector(InputActions.MoveLeft, InputActions.MoveRight, InputActions.MoveUp, InputActions.MoveDown);
+        if (input == Vector2.Zero)
+            return;
+
+        _localPlayer.Position += input * MoveSpeed * deltaSeconds;
+    }
+
+    private void TrySendPosition(float deltaSeconds)
+    {
+        _sendAccumulator += deltaSeconds;
+        if (_sendAccumulator < SendIntervalSeconds)
+            return;
+
+        Vector2 position = _localPlayer.Position;
+        if ((position - _lastSentPosition).LengthSquared() < SendEpsilonSq)
+            return;
+
+        _sendAccumulator = 0f;
+        _lastSentPosition = position;
+        _client.SendPosition(position);
     }
 
     private void DetachClient()
@@ -196,7 +206,6 @@ public partial class World : Node2D
         {
             _localPlayer?.QueueFree();
             _localPlayer = null;
-
             return;
         }
 
@@ -236,11 +245,19 @@ public partial class World : Node2D
         return GetViewportRect().Size * 0.5f;
     }
 
+    private Vector2 InitializeLocalPlayerAtCenter()
+    {
+        EnsureLocalPlayer();
+        Vector2 center = GetScreenCenter();
+        _localPlayer.Position = center;
+        _lastSentPosition = center;
+        _sendAccumulator = 0f;
+        return center;
+    }
+
     private void TryEnableProcessing()
     {
         if (_client != null && _client.IsConnected && _localPlayer != null && _hasLocalId)
-        {
             SetProcess(true);
-        }
     }
 }
