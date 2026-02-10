@@ -13,7 +13,6 @@ namespace Framework.Netcode.Server;
 public abstract class ENetServer : ENetLow
 {
     protected ConcurrentQueue<Cmd<ENetServerOpcode>> ENetCmds { get; } = new();
-    protected System.Timers.Timer EmitLoop { get; set; }
 
     private readonly ConcurrentQueue<(Packet, Peer)> _incoming = new();
     private readonly ConcurrentQueue<ServerPacket> _outgoing = new();
@@ -46,8 +45,6 @@ public abstract class ENetServer : ENetLow
     {
         ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.KickAll, opcode));
     }
-
-    protected virtual void OnEmit() { }
 
     protected void EnqueuePacket(ServerPacket packet)
     {

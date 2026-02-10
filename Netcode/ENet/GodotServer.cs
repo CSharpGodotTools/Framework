@@ -31,9 +31,6 @@ public abstract class GodotServer : ENetServer
         Options = options;
         InitIgnoredPackets(ignoredPackets);
 
-        EmitLoop = SystemTimerFactory.Create(100, OnEmit, false);
-        EmitLoop.Start();
-
         CTS = new CancellationTokenSource();
 
         try
@@ -80,9 +77,6 @@ public abstract class GodotServer : ENetServer
             Log("Server has stopped already");
             return;
         }
-
-        EmitLoop.Stop();
-        EmitLoop.Dispose();
         ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.Stop));
     }
 
