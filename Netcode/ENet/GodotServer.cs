@@ -35,7 +35,11 @@ public abstract class GodotServer : ENetServer
 
         try
         {
-            await Task.Run(() => WorkerThread(port, maxClients), CTS.Token);
+            await Task.Factory.StartNew(
+                () => WorkerThread(port, maxClients),
+                CTS.Token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
         }
         catch (OperationCanceledException)
         {
