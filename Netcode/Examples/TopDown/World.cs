@@ -12,6 +12,7 @@ public partial class World : Node2D
 
     private NetControlPanel _netControlPanel;
     private GameClient _client;
+    private WorldStressTest _stressTest;
 
     private LocalPlayer _localPlayer;
     private readonly Dictionary<uint, ColorRect> _remotePlayers = [];
@@ -23,6 +24,7 @@ public partial class World : Node2D
         _netControlPanel.Net.ClientCreated += OnClientCreated;
         _netControlPanel.Net.ClientDestroyed += OnClientDestroyed;
         SetProcess(false);
+        StartStressTest();
     }
 
     public override void _ExitTree()
@@ -33,6 +35,8 @@ public partial class World : Node2D
             _netControlPanel.Net.ClientDestroyed -= OnClientDestroyed;
         }
 
+        _stressTest?.Stop();
+        _stressTest = null;
         DetachClient();
     }
 
@@ -41,6 +45,7 @@ public partial class World : Node2D
         float deltaSeconds = (float)delta;
         _localPlayer?.Tick(deltaSeconds);
         UpdateRemotePlayers(deltaSeconds);
+        _stressTest?.Tick(deltaSeconds);
     }
 
     private void OnClientCreated(GodotClient client)
@@ -76,6 +81,7 @@ public partial class World : Node2D
     {
         EnsureLocalPlayer();
         _localPlayer.ResetAtCenter();
+        _stressTest?.Start();
         TryEnableProcessing();
     }
 
@@ -197,5 +203,11 @@ public partial class World : Node2D
             if (_remotePlayers.TryGetValue(kvp.Key, out ColorRect rect))
                 rect.Position = rect.Position.Lerp(kvp.Value, t);
         }
+    }
+
+    private void StartStressTest()
+    {
+        _stressTest ??= new WorldStressTest(this);
+        _stressTest.Start();
     }
 }

@@ -29,9 +29,9 @@ public partial class GameServer : GodotServer
         if (packet.Joined)
         {
             // Tell the joining peer their server-assigned id first.
-            Send(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true }, peer);
+            Send(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = true }, peer);
             // Inform everyone else about the new peer.
-            Broadcast(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true }, peer);
+            Broadcast(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = false }, peer);
             SendExistingPlayersTo(peer);
             SendPositionsSnapshotTo(peer);
             return;
@@ -91,7 +91,7 @@ public partial class GameServer : GodotServer
                 continue;
             }
 
-            Send(new SPacketPlayerJoinedLeaved { Id = id, Joined = true }, peer);
+            Send(new SPacketPlayerJoinedLeaved { Id = id, Joined = true, IsLocal = false }, peer);
         }
     }
 

@@ -14,6 +14,7 @@ public partial class GameClient : GodotClient
     public event Action<IReadOnlyDictionary<uint, Vector2>> RemotePositionsUpdated;
 
     private readonly Dictionary<uint, Vector2> _remotePositions = [];
+    private readonly Dictionary<uint, Vector2> _pendingPositions = [];
     private uint _localId;
     private bool _hasLocalId;
 
@@ -37,6 +38,7 @@ public partial class GameClient : GodotClient
         _hasLocalId = false;
         _localId = 0;
         _remotePositions.Clear();
+        _pendingPositions.Clear();
     }
 
     public void SendPosition(Vector2 position)
@@ -50,12 +52,18 @@ public partial class GameClient : GodotClient
 
         if (packet.Joined)
         {
-            // The first join packet is always our own server-assigned id.
-            if (!_hasLocalId)
+            if (packet.IsLocal && !_hasLocalId)
             {
                 _localId = id;
                 _hasLocalId = true;
                 LocalPlayerReady?.Invoke(id);
+                FlushPendingPositions();
+                return;
+            }
+
+            if (!_hasLocalId && !packet.IsLocal)
+            {
+                RemotePlayerJoined?.Invoke(id);
                 return;
             }
 
@@ -78,11 +86,35 @@ public partial class GameClient : GodotClient
 
     private void OnPlayerPositions(SPacketPlayerPositions packet)
     {
+        if (!_hasLocalId)
+        {
+            _pendingPositions.Clear();
+            foreach (KeyValuePair<uint, Vector2> kvp in packet.Positions)
+            {
+                _pendingPositions[kvp.Key] = kvp.Value;
+            }
+            return;
+        }
+
+        ApplyRemotePositions(packet.Positions);
+    }
+
+    private void FlushPendingPositions()
+    {
+        if (_pendingPositions.Count == 0)
+            return;
+
+        ApplyRemotePositions(_pendingPositions);
+        _pendingPositions.Clear();
+    }
+
+    private void ApplyRemotePositions(IReadOnlyDictionary<uint, Vector2> positions)
+    {
         _remotePositions.Clear();
 
-        foreach (KeyValuePair<uint, Vector2> kvp in packet.Positions)
+        foreach (KeyValuePair<uint, Vector2> kvp in positions)
         {
-            if (_hasLocalId && kvp.Key == _localId)
+            if (kvp.Key == _localId)
                 continue;
 
             _remotePositions[kvp.Key] = kvp.Value;
