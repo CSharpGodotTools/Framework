@@ -14,7 +14,7 @@ public class AudioManager : IDisposable
     private const int   MutedVolumeNormalized = -40;    // Normalized muted volume for volume mapping.
 
     // Variables
-    private Pool<AudioStreamPlayer2D> _sfxPool;
+    private NodePool<AudioStreamPlayer2D> _sfxPool;
     private AudioStreamPlayer _musicPlayer;
     private ResourceOptions _options;
     private AutoloadsFramework _autoloads;
@@ -113,7 +113,7 @@ public class AudioManager : IDisposable
 
     private void SetupSfxPool()
     {
-        _sfxPool = new Pool<AudioStreamPlayer2D>(_autoloads, () => new AudioStreamPlayer2D());
+        _sfxPool = new NodePool<AudioStreamPlayer2D>(_autoloads, () => new AudioStreamPlayer2D());
     }
 
     private void SetupMusicPlayer()

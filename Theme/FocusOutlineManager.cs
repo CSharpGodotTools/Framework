@@ -68,7 +68,7 @@ public partial class FocusOutlineManager(Node owner) : Component(owner)
         _outline.Size = _currentFocus.Size + padding * 2;
     }
 
-    protected override void Dispose()
+    protected override void OnDispose()
     {
         _viewport.GuiFocusChanged -= OnGuiFocusChanged;
     }

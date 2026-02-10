@@ -102,7 +102,7 @@ public abstract partial class AutoloadsFramework : Node
     {
         if (what == NotificationWMCloseRequest)
         {
-            ExitGame().FireAndForget();
+            TaskUtils.FireAndForget(ExitGame);
         }
 
         Notification(what);

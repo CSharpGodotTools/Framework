@@ -1881,7 +1881,7 @@
             Called when an unhandled input event is received while input is enabled.
             </summary>
         </member>
-        <member name="M:GodotUtils.Component.Dispose">
+        <member name="M:GodotUtils.Component.OnDispose">
             <summary>
             Called when the owner node exits the tree.
             </summary>
@@ -1909,6 +1909,11 @@
         <member name="M:GodotUtils.Component.SetUnhandledInput(System.Boolean)">
             <summary>
             Enables or disables unhandled input processing.
+            </summary>
+        </member>
+        <member name="M:GodotUtils.Component.Dispose">
+            <summary>
+            Performs component cleanup.
             </summary>
         </member>
         <member name="T:GodotUtils.ComponentHost">
@@ -2016,6 +2021,21 @@
             Unregisters a component from all processing types.
             </summary>
         </member>
+        <member name="T:GodotUtils.IComponentHost">
+            <summary>
+            Defines component host operations.
+            </summary>
+        </member>
+        <member name="M:GodotUtils.IComponentHost.Add(GodotUtils.Component)">
+            <summary>
+            Adds a component to the host.
+            </summary>
+        </member>
+        <member name="M:GodotUtils.IComponentHost.SetActive(System.Boolean)">
+            <summary>
+            Sets active state on all hosted components.
+            </summary>
+        </member>
         <member name="T:GodotUtils.CursorUtils">
             <summary>
             Utility class for handling cursor-related operations in a 2D Godot scene.
@@ -2041,10 +2061,10 @@
             Returns physics body nodes under the provided node position.
             </summary>
         </member>
-        <member name="M:GodotUtils.DirectoryUtils.Traverse(System.String,System.Func{GodotUtils.DirectoryUtils.TraverseEntry,GodotUtils.TraverseResult})">
+        <member name="M:GodotUtils.DirectoryUtils.Traverse(System.String,System.Func{GodotUtils.DirectoryUtils.TraverseEntry,GodotUtils.TraverseDecision})">
             <summary>
             Recursively traverses a directory tree and invokes a callback for each file encountered.
-            The callback may control traversal flow (continue, skip directories, or stop traversal).
+            The callback may control traversal flow (continue, skip children, or stop traversal).
             
             <code>
             Traverse("res://", entry => GD.Print(entry.FullPath));
@@ -2154,24 +2174,9 @@
             Returns the number of fully transparent rows on the bottom of the image.
             </summary>
         </member>
-        <member name="M:GodotUtils.InputUtils.IsMovingLeft">
+        <member name="M:GodotUtils.InputUtils.GetMoveVector">
             <summary>
-            Returns true when moving left based on arrow or WASD input.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.InputUtils.IsMovingRight">
-            <summary>
-            Returns true when moving right based on arrow or WASD input.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.InputUtils.IsMovingUp">
-            <summary>
-            Returns true when moving up based on arrow or WASD input.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.InputUtils.IsMovingDown">
-            <summary>
-            Returns true when moving down based on arrow or WASD input.
+            Returns a normalized movement vector from arrow or WASD input.
             </summary>
         </member>
         <member name="M:GodotUtils.MathUtils.SumNaturalNumbers(System.Int32)">
@@ -2198,12 +2203,12 @@
             <code>player.CollisionLayer = MathUtils.GetLayerValues(1, 4, 5)</code>
             </summary>
         </member>
-        <member name="M:GodotUtils.MathUtils.RandRange(System.Double,System.Double)">
+        <member name="M:GodotUtils.MathUtils.RandomRange(System.Double,System.Double)">
             <summary>
             Returns a random float within the range [<paramref name="min"/>, <paramref name="max"/>].
             </summary>
         </member>
-        <member name="M:GodotUtils.MathUtils.RandRange(System.Int32,System.Int32)">
+        <member name="M:GodotUtils.MathUtils.RandomRangeInt(System.Int32,System.Int32)">
             <summary>
             Returns a random integer within the range [<paramref name="min"/>, <paramref name="max"/>].
             </summary>
@@ -2289,7 +2294,7 @@
             Defines lifecycle callbacks for pooled nodes.
             </summary>
         </member>
-        <member name="M:GodotUtils.IPoolable`1.OnCreate(GodotUtils.LifecyclePool{`0})">
+        <member name="M:GodotUtils.IPoolable`1.OnCreate(GodotUtils.IPoolContext{`0})">
             <summary>
             Invoked when a new <typeparamref name="TNode"/> is created.
             </summary>
@@ -2304,12 +2309,22 @@
             Invoked when a <typeparamref name="TNode"/> is released from the pool.
             </summary>
         </member>
-        <member name="T:GodotUtils.LifecyclePool`1">
+        <member name="T:GodotUtils.IPoolContext`1">
+            <summary>
+            Context passed to pooled nodes for releasing themselves.
+            </summary>
+        </member>
+        <member name="M:GodotUtils.IPoolContext`1.Release(`0)">
+            <summary>
+            Releases a node back into the pool.
+            </summary>
+        </member>
+        <member name="T:GodotUtils.LifecycleNodePool`1">
             <summary>
             Creates a pool of nodes to eliminate expensive QueueFree calls.
             <code>
             // Create the pool
-            LifecyclePool&lt;Projectile&gt; pool = new(parentNode, () => projectilePackedScene.Instantiate());
+            LifecycleNodePool&lt;Projectile&gt; pool = new(parentNode, () => projectilePackedScene.Instantiate());
             
             // Get a projectile from the pool
             Projectile projectile = pool.Acquire();
@@ -2320,37 +2335,37 @@
             </summary>
             <typeparam name="TNode">The nodes managed in the pool.</typeparam>
         </member>
-        <member name="P:GodotUtils.LifecyclePool`1.ActiveNodes">
+        <member name="P:GodotUtils.LifecycleNodePool`1.ActiveNodes">
             <summary>
             Nodes currently in use by the pool.
             </summary>
         </member>
-        <member name="M:GodotUtils.LifecyclePool`1.#ctor(Godot.Node,System.Func{`0})">
+        <member name="M:GodotUtils.LifecycleNodePool`1.#ctor(Godot.Node,System.Func{`0})">
             <summary>
             Creates a pool of nodes using <paramref name="createNodeFunc"/> and attaches them as children of <paramref name="parent"/> to avoid expensive <c>QueueFree()</c> calls.
             </summary>
         </member>
-        <member name="M:GodotUtils.LifecyclePool`1.Acquire">
+        <member name="M:GodotUtils.LifecycleNodePool`1.Acquire">
             <summary>
             Returns an available <typeparamref name="TNode"/> or creates a new one if all are in use.
             </summary>
         </member>
-        <member name="M:GodotUtils.LifecyclePool`1.Release(`0)">
+        <member name="M:GodotUtils.LifecycleNodePool`1.Release(`0)">
             <summary>
             Releases the <paramref name="node"/> from the pool.
             </summary>
         </member>
-        <member name="M:GodotUtils.LifecyclePool`1.QueueFreeAll">
+        <member name="M:GodotUtils.LifecycleNodePool`1.QueueFreeAll">
             <summary>
             Queue frees all inactive and active nodes in the pool.
             </summary>
         </member>
-        <member name="T:GodotUtils.Pool`1">
+        <member name="T:GodotUtils.NodePool`1">
             <summary>
             Creates a pool of nodes to eliminate expensive QueueFree calls.
             <code>
             // Create the pool
-            Pool&lt;Projectile&gt; pool = new(parentNode, () => projectilePackedScene.Instantiate());
+            NodePool&lt;Projectile&gt; pool = new(parentNode, () => projectilePackedScene.Instantiate());
             
             // Get a projectile from the pool
             Projectile projectile = pool.Acquire();
@@ -2361,27 +2376,27 @@
             </summary>
             <typeparam name="TNode">The nodes managed in the pool.</typeparam>
         </member>
-        <member name="P:GodotUtils.Pool`1.ActiveNodes">
+        <member name="P:GodotUtils.NodePool`1.ActiveNodes">
             <summary>
             Nodes currently in use by the pool.
             </summary>
         </member>
-        <member name="M:GodotUtils.Pool`1.#ctor(Godot.Node,System.Func{`0})">
+        <member name="M:GodotUtils.NodePool`1.#ctor(Godot.Node,System.Func{`0})">
             <summary>
             Creates a pool of nodes using <paramref name="createNodeFunc"/> and attaches them as children of <paramref name="parent"/> to avoid expensive <c>QueueFree()</c> calls.
             </summary>
         </member>
-        <member name="M:GodotUtils.Pool`1.Acquire">
+        <member name="M:GodotUtils.NodePool`1.Acquire">
             <summary>
             Returns an available <typeparamref name="TNode"/> or creates a new one if all are in use.
             </summary>
         </member>
-        <member name="M:GodotUtils.Pool`1.Release(`0)">
+        <member name="M:GodotUtils.NodePool`1.Release(`0)">
             <summary>
             Releases the <paramref name="node"/> from the pool.
             </summary>
         </member>
-        <member name="M:GodotUtils.Pool`1.QueueFreeAll">
+        <member name="M:GodotUtils.NodePool`1.QueueFreeAll">
             <summary>
             Queue frees all inactive and active nodes in the pool.
             </summary>
@@ -2493,14 +2508,10 @@
             Switches to the provided state.
             </summary>
         </member>
-        <member name="M:GodotUtils.TaskUtils.FireAndForget(System.Threading.Tasks.Task)">
-            <summary>
-            Logs exceptions from a task without awaiting it.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.TaskUtils.TryRun(System.Func{System.Threading.Tasks.Task})">
+        <member name="M:GodotUtils.TaskUtils.FireAndForget(System.Func{System.Threading.Tasks.Task})">
             <summary>
             Runs a task and logs any errors, intended for fire-and-forget usage.
+            <code>TaskUtils.FireAndForget(() =&gt; ExitGame());</code>
             </summary>
         </member>
         <member name="P:GodotUtils.UI.ToolScriptHelpers.RemoveEmptyFolders">
@@ -2593,7 +2604,12 @@
             Cached StringNames for the signals contained in this class, for fast lookup.
             </summary>
         </member>
-        <member name="M:GodotUtils.VectorUtils.Random">
+        <member name="T:GodotUtils.TraverseDecision">
+            <summary>
+            Decision returned by a traversal callback.
+            </summary>
+        </member>
+        <member name="M:GodotUtils.VectorUtils.RandomDirection2D">
             <summary>
             Returns a random normalized 2D direction vector.
             </summary>
