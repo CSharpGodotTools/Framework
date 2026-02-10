@@ -14,8 +14,6 @@ public partial class World : Node2D
 
     private NetControlPanel _netControlPanel;
     private GameClient _client;
-    private uint _localId;
-    private bool _hasLocalId;
 
     private ColorRect _localPlayer;
     private readonly Dictionary<uint, ColorRect> _remotePlayers = [];
@@ -56,8 +54,10 @@ public partial class World : Node2D
         _client = gameClient;
         _client.Connected += OnClientConnected;
         _client.Disconnected += OnClientDisconnected;
-        _client.PlayerJoinedLeaved += OnPlayerJoinedLeaved;
-        _client.PositionsUpdated += OnPositionsUpdated;
+        _client.LocalPlayerReady += OnLocalPlayerReady;
+        _client.RemotePlayerJoined += OnRemotePlayerJoined;
+        _client.RemotePlayerLeft += OnRemotePlayerLeft;
+        _client.RemotePositionsUpdated += OnRemotePositionsUpdated;
     }
 
     private void OnClientDestroyed(GodotClient client)
@@ -67,8 +67,10 @@ public partial class World : Node2D
 
         gameClient.Connected -= OnClientConnected;
         gameClient.Disconnected -= OnClientDisconnected;
-        gameClient.PlayerJoinedLeaved -= OnPlayerJoinedLeaved;
-        gameClient.PositionsUpdated -= OnPositionsUpdated;
+        gameClient.LocalPlayerReady -= OnLocalPlayerReady;
+        gameClient.RemotePlayerJoined -= OnRemotePlayerJoined;
+        gameClient.RemotePlayerLeft -= OnRemotePlayerLeft;
+        gameClient.RemotePositionsUpdated -= OnRemotePositionsUpdated;
 
         DetachClient();
     }
@@ -86,60 +88,31 @@ public partial class World : Node2D
         ClearPlayers();
     }
 
-    private void OnPlayerJoinedLeaved(uint id, bool joined)
+    private void OnLocalPlayerReady(uint _)
     {
-        if (joined)
-        {
-            // First joined packet we receive is our own server-assigned id.
-            // Cache it so we can distinguish local vs remote players.
-            if (!_hasLocalId)
-            {
-                _localId = id;
-                _hasLocalId = true;
-                EnsureLocalPlayer();
-                TryEnableProcessing();
-                return;
-            }
-
-            // Ignore a redundant join message for ourselves.
-            if (id == _localId)
-            {
-                EnsureLocalPlayer();
-                return;
-            }
-
-            // Any other join belongs to a remote player.
-            EnsureRemotePlayer(id);
-        }
-        else
-        {
-            // Remove player visuals on leave.
-            RemovePlayer(id);
-        }
+        EnsureLocalPlayer();
+        TryEnableProcessing();
     }
 
-    private void OnPositionsUpdated(Dictionary<uint, Vector2> positions)
+    private void OnRemotePlayerJoined(uint id)
     {
-        // Apply authoritative positions for all known players.
+        EnsureRemotePlayer(id);
+    }
+
+    private void OnRemotePlayerLeft(uint id)
+    {
+        RemovePlayer(id);
+    }
+
+    private void OnRemotePositionsUpdated(IReadOnlyDictionary<uint, Vector2> positions)
+    {
         foreach (KeyValuePair<uint, Vector2> kvp in positions)
         {
-            uint id = kvp.Key;
-            Vector2 position = kvp.Value;
-
-            if (id == _localId)
-            {
-                // Update local visuals too; server positions may include corrections.
-                if (_localPlayer != null)
-                {
-                    _localPlayer.Position = position;
-                }
-
+            if (_client != null && _client.HasLocalId && kvp.Key == _client.LocalId)
                 continue;
-            }
 
-            // Ensure remote placeholder exists, then update its position.
-            ColorRect rect = EnsureRemotePlayer(id);
-            rect.Position = position;
+            ColorRect rect = EnsureRemotePlayer(kvp.Key);
+            rect.Position = kvp.Value;
         }
     }
 
@@ -170,8 +143,6 @@ public partial class World : Node2D
     private void DetachClient()
     {
         _client = null;
-        _localId = 0;
-        _hasLocalId = false;
         SetProcess(false);
         ClearPlayers();
     }
@@ -202,13 +173,6 @@ public partial class World : Node2D
 
     private void RemovePlayer(uint id)
     {
-        if (id == _localId)
-        {
-            _localPlayer?.QueueFree();
-            _localPlayer = null;
-            return;
-        }
-
         if (_remotePlayers.TryGetValue(id, out ColorRect rect))
         {
             rect.QueueFree();
@@ -219,7 +183,6 @@ public partial class World : Node2D
     private void ClearPlayers()
     {
         _sendAccumulator = 0f;
-        _hasLocalId = false;
         _localPlayer?.QueueFree();
         _localPlayer = null;
 
@@ -257,7 +220,7 @@ public partial class World : Node2D
 
     private void TryEnableProcessing()
     {
-        if (_client != null && _client.IsConnected && _localPlayer != null && _hasLocalId)
+        if (_client != null && _client.IsConnected && _localPlayer != null && _client.HasLocalId)
             SetProcess(true);
     }
 }

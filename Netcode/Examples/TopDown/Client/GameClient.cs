@@ -8,10 +8,18 @@ namespace Framework.Netcode.Examples.Topdown;
 
 public partial class GameClient : GodotClient
 {
-    public event Action<uint, bool> PlayerJoinedLeaved;
-    public event Action<Dictionary<uint, Vector2>> PositionsUpdated;
+    public event Action<uint> LocalPlayerReady;
+    public event Action<uint> RemotePlayerJoined;
+    public event Action<uint> RemotePlayerLeft;
+    public event Action<IReadOnlyDictionary<uint, Vector2>> RemotePositionsUpdated;
+
+    private readonly Dictionary<uint, Vector2> _remotePositions = [];
+    private uint _localId;
+    private bool _hasLocalId;
 
     public uint PeerId => _peer.ID;
+    public bool HasLocalId => _hasLocalId;
+    public uint LocalId => _localId;
 
     public GameClient()
     {
@@ -24,6 +32,13 @@ public partial class GameClient : GodotClient
         Send(new CPacketPlayerJoinLeave { Joined = true });
     }
 
+    protected override void OnDisconnect(Event netEvent)
+    {
+        _hasLocalId = false;
+        _localId = 0;
+        _remotePositions.Clear();
+    }
+
     public void SendPosition(Vector2 position)
     {
         Send(new CPacketPlayerPosition { Position = position });
@@ -31,11 +46,48 @@ public partial class GameClient : GodotClient
 
     private void OnPlayerJoinedLeaved(SPacketPlayerJoinedLeaved packet)
     {
-        PlayerJoinedLeaved?.Invoke(packet.Id, packet.Joined);
+        uint id = packet.Id;
+
+        if (packet.Joined)
+        {
+            // The first join packet is always our own server-assigned id.
+            if (!_hasLocalId)
+            {
+                _localId = id;
+                _hasLocalId = true;
+                LocalPlayerReady?.Invoke(id);
+                return;
+            }
+
+            if (id == _localId)
+            {
+                LocalPlayerReady?.Invoke(id);
+                return;
+            }
+
+            RemotePlayerJoined?.Invoke(id);
+            return;
+        }
+
+        if (_hasLocalId && id == _localId)
+            return;
+
+        _remotePositions.Remove(id);
+        RemotePlayerLeft?.Invoke(id);
     }
 
     private void OnPlayerPositions(SPacketPlayerPositions packet)
     {
-        PositionsUpdated?.Invoke(new Dictionary<uint, Vector2>(packet.Positions));
+        _remotePositions.Clear();
+
+        foreach (KeyValuePair<uint, Vector2> kvp in packet.Positions)
+        {
+            if (_hasLocalId && kvp.Key == _localId)
+                continue;
+
+            _remotePositions[kvp.Key] = kvp.Value;
+        }
+
+        RemotePositionsUpdated?.Invoke(new Dictionary<uint, Vector2>(_remotePositions));
     }
 }
