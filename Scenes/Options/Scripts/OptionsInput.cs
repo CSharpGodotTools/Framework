@@ -139,11 +139,14 @@ public partial class OptionsInput : IDisposable
         // Remember where the button was in the HBox so we can recreate it in the same spot.
         int index = _btnNewInput.Btn.GetIndex();
 
+        // Duplicate the input event so it stays valid after this input callback.
+        InputEvent persistentEvent = (InputEvent)@event.Duplicate();
+
         // Recreate the UI button and position it back where the old one was.
-        RecreateButtonAtIndex(action, @event, index);
+        RecreateButtonAtIndex(action, persistentEvent, index);
 
         // Update both the options storage and the input map to reflect the new binding.
-        UpdateOptionStorageAndInputMap(action, @event);
+        UpdateOptionStorageAndInputMap(action, persistentEvent);
 
         // Focus on the plus button
         FocusOnPlusBtn();
@@ -214,7 +217,7 @@ public partial class OptionsInput : IDisposable
             Action = action,
             HBox = hbox,
             Btn = btn,
-            InputEvent = (InputEvent)inputEvent.Duplicate(),
+            InputEvent = inputEvent,
             Plus = false
         };
 
