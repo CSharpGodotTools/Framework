@@ -130,8 +130,7 @@ public abstract class GodotClient : ENetClient
         if (!IgnoredPackets.Contains(type) && Options.PrintPacketReceived)
         {
             Log(
-                $"Received packet: {type.Name}{(Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : "")}",
-                BBColor.Deepskyblue
+                $"Received packet: {type.Name}{(Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : "")}"
             );
         }
     }

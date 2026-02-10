@@ -43,7 +43,7 @@ public abstract class ENetClient : ENetLow
     /// <summary>
     /// Log messages as the client. Thread safe.
     /// </summary>
-    public sealed override void Log(object message, BBColor color = BBColor.Aqua)
+    public sealed override void Log(object message, BBColor color = BBColor.Gray)
     {
         GameFramework.Logger.Log($"[Client] {message}", color);
     }

@@ -34,7 +34,7 @@ public abstract class ENetServer : ENetLow
     /// <summary>
     /// Log a message as the server. This function is thread safe.
     /// </summary>
-    public sealed override void Log(object message, BBColor color = BBColor.Green)
+    public sealed override void Log(object message, BBColor color = BBColor.Gray)
     {
         GameFramework.Logger.Log($"[Server] {message}", color);
     }
@@ -268,7 +268,7 @@ public abstract class ENetServer : ENetLow
         {
             string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
 
-            Log($"Received packet: {type.Name} from client {clientId}{packetData}", BBColor.LightGreen);
+            Log($"Received packet: {type.Name} from client {clientId}{packetData}");
         }
     }
 
