@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System;
 using GodotUtils;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
@@ -20,19 +21,7 @@ public abstract class ENetClient : ENetLow
     protected Peer _peer;
     protected long _connected;
 
-    private const double ConnectionLogQuietGapSeconds = 0.5;
-    private const double ConnectionLogMaxWindowSeconds = 5.0;
-    private const double LifecycleLogQuietGapSeconds = 0.5;
-    private const double LifecycleLogMaxWindowSeconds = 5.0;
-    private static int s_connectedCount;
-    private static int s_disconnectedCount;
-    private static int s_timeoutCount;
-    private static long s_connectionWindowStartTicks;
-    private static long s_connectionLastEventTicks;
-    private static int s_startedCount;
-    private static int s_stoppedCount;
-    private static long s_lifecycleWindowStartTicks;
-    private static long s_lifecycleLastEventTicks;
+    private static readonly ClientLogAggregator _logAggregator = new();
 
     // Config
     /// <summary>
@@ -70,8 +59,7 @@ public abstract class ENetClient : ENetLow
         ProcessENetCommands();
         ProcessIncomingPackets();
         ProcessOutgoingPackets();
-        FlushConnectionLogs(force: false);
-        FlushLifecycleLogs(force: false);
+        _logAggregator.Flush(force: false, message => Log(message));
     }
 
     protected virtual void OnConnect(Event netEvent) { }
@@ -82,8 +70,7 @@ public abstract class ENetClient : ENetLow
     {
         Interlocked.Exchange(ref _connected, 1);
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Connected));
-        Interlocked.Increment(ref s_connectedCount);
-        MarkConnectionEvent();
+        _logAggregator.RecordConnect();
         TryInvoke(() => OnConnect(netEvent));
     }
 
@@ -95,8 +82,7 @@ public abstract class ENetClient : ENetLow
         
         OnDisconnectCleanup(_peer);
 
-        Interlocked.Increment(ref s_disconnectedCount);
-        MarkConnectionEvent();
+        _logAggregator.RecordDisconnect();
         TryInvoke(() => OnDisconnect(netEvent));
     }
 
@@ -107,8 +93,7 @@ public abstract class ENetClient : ENetLow
         GodotCmdsInternal.Enqueue(new Cmd<GodotOpcode>(GodotOpcode.Timeout));
 
         OnDisconnectCleanup(_peer);
-        Interlocked.Increment(ref s_timeoutCount);
-        MarkConnectionEvent();
+        _logAggregator.RecordTimeout();
         TryInvoke(() => OnTimeout(netEvent));
     }
 
@@ -233,7 +218,9 @@ public abstract class ENetClient : ENetLow
         if (!Options.PrintPacketSent || IgnoredPackets.Contains(type))
             return;
 
-        string packetData = Options.PrintPacketData ? $"\n{clientPacket.ToFormattedString()}" : string.Empty;
+        string packetData = string.Empty;
+        if (Options.PrintPacketData)
+            packetData = $"\n{clientPacket.ToFormattedString()}";
         Log($"Sent packet: {type.Name} {FormatByteSize(clientPacket.GetSize())}{packetData}");
     }
 
@@ -244,115 +231,152 @@ public abstract class ENetClient : ENetLow
         return address;
     }
 
-    private void FlushConnectionLogs(bool force)
+    private sealed class ClientLogAggregator
     {
-        if (Volatile.Read(ref s_connectedCount) == 0 &&
-            Volatile.Read(ref s_disconnectedCount) == 0 &&
-            Volatile.Read(ref s_timeoutCount) == 0)
-            return;
+        private const double QuietGapSeconds = 0.5;
+        private const double MaxWindowSeconds = 5.0;
 
-        long startTicks = Interlocked.Read(ref s_connectionWindowStartTicks);
-        long lastEventTicks = Interlocked.Read(ref s_connectionLastEventTicks);
-        if (startTicks == 0 || lastEventTicks == 0)
-            return;
+        private int _connectedCount;
+        private int _disconnectedCount;
+        private int _timeoutCount;
+        private int _startedCount;
+        private int _stoppedCount;
 
-        long now = Stopwatch.GetTimestamp();
-        double sinceLast = (now - lastEventTicks) / (double)Stopwatch.Frequency;
-        double windowSeconds = (lastEventTicks - startTicks) / (double)Stopwatch.Frequency;
+        private long _eventWindowStartTicks;
+        private long _eventLastEventTicks;
 
-        if (!force && sinceLast < ConnectionLogQuietGapSeconds && windowSeconds < ConnectionLogMaxWindowSeconds)
-            return;
+        private long _lastConnectTicks;
+        private long _lastDisconnectTicks;
+        private long _lastTimeoutTicks;
+        private long _lastStartedTicks;
+        private long _lastStoppedTicks;
 
-        if (!force && Interlocked.CompareExchange(ref s_connectionLastEventTicks, 0, lastEventTicks) != lastEventTicks)
-            return;
+        public void RecordConnect()
+        {
+            Interlocked.Increment(ref _connectedCount);
+            MarkEvent(ref _lastConnectTicks);
+        }
 
-        int connects = Interlocked.Exchange(ref s_connectedCount, 0);
-        int disconnects = Interlocked.Exchange(ref s_disconnectedCount, 0);
-        int timeouts = Interlocked.Exchange(ref s_timeoutCount, 0);
-        if (force)
-            Interlocked.Exchange(ref s_connectionLastEventTicks, 0);
+        public void RecordDisconnect()
+        {
+            Interlocked.Increment(ref _disconnectedCount);
+            MarkEvent(ref _lastDisconnectTicks);
+        }
 
-        Interlocked.CompareExchange(ref s_connectionWindowStartTicks, 0, startTicks);
+        public void RecordTimeout()
+        {
+            Interlocked.Increment(ref _timeoutCount);
+            MarkEvent(ref _lastTimeoutTicks);
+        }
 
-        double reportSeconds = Math.Max(windowSeconds, 0.01);
+        public void RecordStarted()
+        {
+            Interlocked.Increment(ref _startedCount);
+            MarkEvent(ref _lastStartedTicks);
+        }
 
-        if (connects > 0)
-            Log($"{connects} connect event{(connects == 1 ? "" : "s")} (last {reportSeconds:0.##}s)");
+        public void RecordStopped()
+        {
+            Interlocked.Increment(ref _stoppedCount);
+            MarkEvent(ref _lastStoppedTicks);
+        }
 
-        if (disconnects > 0)
-            Log($"{disconnects} disconnect event{(disconnects == 1 ? "" : "s")} (last {reportSeconds:0.##}s)");
+        public void Flush(bool force, Action<string> log)
+        {
+            int startedSnapshot = Volatile.Read(ref _startedCount);
+            int stoppedSnapshot = Volatile.Read(ref _stoppedCount);
+            int connectedSnapshot = Volatile.Read(ref _connectedCount);
+            int disconnectedSnapshot = Volatile.Read(ref _disconnectedCount);
+            int timeoutSnapshot = Volatile.Read(ref _timeoutCount);
+            if (startedSnapshot == 0 && stoppedSnapshot == 0 && connectedSnapshot == 0 && disconnectedSnapshot == 0 && timeoutSnapshot == 0)
+                return;
 
-        if (timeouts > 0)
-            Log($"{timeouts} timeout event{(timeouts == 1 ? "" : "s")} (last {reportSeconds:0.##}s)");
-    }
+            long startTicks = Interlocked.Read(ref _eventWindowStartTicks);
+            long lastEventTicks = Interlocked.Read(ref _eventLastEventTicks);
+            if (startTicks == 0 || lastEventTicks == 0)
+                return;
 
-    private void FlushLifecycleLogs(bool force)
-    {
-        int startedSnapshot = Volatile.Read(ref s_startedCount);
-        int stoppedSnapshot = Volatile.Read(ref s_stoppedCount);
-        if (startedSnapshot == 0 && stoppedSnapshot == 0)
-            return;
+            long now = Stopwatch.GetTimestamp();
+            double sinceLast = (now - lastEventTicks) / (double)Stopwatch.Frequency;
+            double windowSeconds = (lastEventTicks - startTicks) / (double)Stopwatch.Frequency;
 
-        long startTicks = Interlocked.Read(ref s_lifecycleWindowStartTicks);
-        long lastEventTicks = Interlocked.Read(ref s_lifecycleLastEventTicks);
-        if (startTicks == 0 || lastEventTicks == 0)
-            return;
+            if (!force && sinceLast < QuietGapSeconds && windowSeconds < MaxWindowSeconds)
+                return;
 
-        long now = Stopwatch.GetTimestamp();
-        double sinceLast = (now - lastEventTicks) / (double)Stopwatch.Frequency;
-        double windowSeconds = (lastEventTicks - startTicks) / (double)Stopwatch.Frequency;
+            if (!force && Interlocked.CompareExchange(ref _eventLastEventTicks, 0, lastEventTicks) != lastEventTicks)
+                return;
 
-        if (!force && sinceLast < LifecycleLogQuietGapSeconds && windowSeconds < LifecycleLogMaxWindowSeconds)
-            return;
+            int connects = Interlocked.Exchange(ref _connectedCount, 0);
+            int disconnects = Interlocked.Exchange(ref _disconnectedCount, 0);
+            int timeouts = Interlocked.Exchange(ref _timeoutCount, 0);
+            int started = Interlocked.Exchange(ref _startedCount, 0);
+            int stopped = Interlocked.Exchange(ref _stoppedCount, 0);
+            long lastConnectTicks = Interlocked.Exchange(ref _lastConnectTicks, 0);
+            long lastDisconnectTicks = Interlocked.Exchange(ref _lastDisconnectTicks, 0);
+            long lastTimeoutTicks = Interlocked.Exchange(ref _lastTimeoutTicks, 0);
+            long lastStartedTicks = Interlocked.Exchange(ref _lastStartedTicks, 0);
+            long lastStoppedTicks = Interlocked.Exchange(ref _lastStoppedTicks, 0);
 
-        if (!force && Interlocked.CompareExchange(ref s_lifecycleLastEventTicks, 0, lastEventTicks) != lastEventTicks)
-            return;
+            if (force)
+                Interlocked.Exchange(ref _eventLastEventTicks, 0);
 
-        int started = Interlocked.Exchange(ref s_startedCount, 0);
-        int stopped = Interlocked.Exchange(ref s_stoppedCount, 0);
+            Interlocked.CompareExchange(ref _eventWindowStartTicks, 0, startTicks);
 
-        if (force)
-            Interlocked.Exchange(ref s_lifecycleLastEventTicks, 0);
+            double reportSeconds = Math.Max(windowSeconds, 0.01);
 
-        Interlocked.CompareExchange(ref s_lifecycleWindowStartTicks, 0, startTicks);
+            List<(long Tick, Action LogAction)> entries = new(5);
+            if (connects > 0)
+                entries.Add((lastConnectTicks, () => log($"{FormatCount("connect event", connects)}{FormatLastSuffix(connects, reportSeconds)}")));
+            if (disconnects > 0)
+                entries.Add((lastDisconnectTicks, () => log($"{FormatCount("disconnect event", disconnects)}{FormatLastSuffix(disconnects, reportSeconds)}")));
+            if (timeouts > 0)
+                entries.Add((lastTimeoutTicks, () => log($"{FormatCount("timeout event", timeouts)}{FormatLastSuffix(timeouts, reportSeconds)}")));
+            if (started > 0)
+                entries.Add((lastStartedTicks, () => log($"{FormatCount("client", started)} started{FormatLastSuffix(started, reportSeconds)}")));
+            if (stopped > 0)
+                entries.Add((lastStoppedTicks, () => log($"{FormatCount("client", stopped)} stopped{FormatLastSuffix(stopped, reportSeconds)}")));
 
-        double reportSeconds = Math.Max(windowSeconds, 0.01);
+            entries.Sort(static (a, b) => a.Tick.CompareTo(b.Tick));
+            foreach (var entry in entries)
+                entry.LogAction();
+        }
 
-        if (started > 0)
-            Log($"{started} client{(started == 1 ? "" : "s")} started (last {reportSeconds:0.##}s)");
+        private void MarkEvent(ref long lastEventKindTicks)
+        {
+            long now = Stopwatch.GetTimestamp();
+            if (Interlocked.CompareExchange(ref _eventWindowStartTicks, now, 0) == 0)
+                Interlocked.Exchange(ref _eventLastEventTicks, now);
+            else
+                Interlocked.Exchange(ref _eventLastEventTicks, now);
 
-        if (stopped > 0)
-            Log($"{stopped} client{(stopped == 1 ? "" : "s")} stopped (last {reportSeconds:0.##}s)");
+            Interlocked.Exchange(ref lastEventKindTicks, now);
+        }
+
+        private static string FormatCount(string singular, int count)
+        {
+            if (count == 1)
+                return $"1 {singular}";
+
+            return $"{count} {singular}s";
+        }
+
+        private static string FormatLastSuffix(int count, double seconds)
+        {
+            if (count == 1)
+                return string.Empty;
+
+            return $" (last {seconds:0.##}s)";
+        }
     }
 
     protected void NotifyClientStarting()
     {
-        Interlocked.Increment(ref s_startedCount);
-        MarkLifecycleEvent();
+        _logAggregator.RecordStarted();
     }
 
     private void NotifyClientStopped()
     {
-        Interlocked.Increment(ref s_stoppedCount);
-        MarkLifecycleEvent();
-    }
-
-    private static void MarkConnectionEvent()
-    {
-        long now = Stopwatch.GetTimestamp();
-        if (Interlocked.CompareExchange(ref s_connectionWindowStartTicks, now, 0) == 0)
-            Interlocked.Exchange(ref s_connectionLastEventTicks, now);
-        else
-            Interlocked.Exchange(ref s_connectionLastEventTicks, now);
-    }
-
-    private static void MarkLifecycleEvent()
-    {
-        long now = Stopwatch.GetTimestamp();
-        if (Interlocked.CompareExchange(ref s_lifecycleWindowStartTicks, now, 0) == 0)
-            Interlocked.Exchange(ref s_lifecycleLastEventTicks, now);
-        else
-            Interlocked.Exchange(ref s_lifecycleLastEventTicks, now);
+        _logAggregator.RecordStopped();
     }
 
     private void TryInvoke(Action action)
