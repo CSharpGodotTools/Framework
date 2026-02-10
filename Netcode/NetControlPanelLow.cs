@@ -108,6 +108,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         client.Connected -= OnClientConnected;
         client.Disconnected -= OnClientDisconnected;
         _startServerBtn.Disabled = false;
+        _stopServerBtn.Disabled = false;
     }
 
     private void OnClientConnected()
