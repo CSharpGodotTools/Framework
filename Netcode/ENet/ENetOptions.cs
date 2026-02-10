@@ -6,4 +6,5 @@ public class ENetOptions
     public bool PrintPacketByteSize { get; set; } = false;
     public bool PrintPacketReceived { get; set; } = true;
     public bool PrintPacketSent     { get; set; } = true;
+    public bool ShowLogTimestamps   { get; set; } = true;
 }

@@ -42,7 +42,11 @@ public abstract class ENetServer : ENetLow
     /// </summary>
     public sealed override void Log(object message, BBColor color = BBColor.Gray)
     {
-        GameFramework.Logger.Log($"[Server] {message}", color);
+        string timestamp = string.Empty;
+        if (Options != null && Options.ShowLogTimestamps)
+            timestamp = $"[{DateTime.Now:HH:mm:ss}] ";
+
+        GameFramework.Logger.Log($"{timestamp}[Server] {message}", color);
     }
 
     /// <summary>
@@ -69,7 +73,7 @@ public abstract class ENetServer : ENetLow
     protected sealed override void OnConnectLow(Event netEvent)
     {
         _peers[netEvent.Peer.ID] = netEvent.Peer;
-        _logAggregator.RecordConnect();
+        _logAggregator.RecordConnect(netEvent.Peer.ID);
     }
 
     protected virtual void OnPeerDisconnect(Event netEvent) { }
@@ -78,14 +82,14 @@ public abstract class ENetServer : ENetLow
     {
         _peers.Remove(netEvent.Peer.ID);
         TryInvokePeerDisconnect(netEvent);
-        _logAggregator.RecordDisconnect();
+        _logAggregator.RecordDisconnect(netEvent.Peer.ID);
     }
 
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
         _peers.Remove(netEvent.Peer.ID);
         TryInvokePeerDisconnect(netEvent);
-        _logAggregator.RecordTimeout();
+        _logAggregator.RecordTimeout(netEvent.Peer.ID);
     }
 
     protected sealed override void OnReceiveLow(Event netEvent)
@@ -346,22 +350,28 @@ public abstract class ENetServer : ENetLow
         private long _lastConnectTicks;
         private long _lastDisconnectTicks;
         private long _lastTimeoutTicks;
+        private uint _lastConnectPeerId;
+        private uint _lastDisconnectPeerId;
+        private uint _lastTimeoutPeerId;
 
-        public void RecordConnect()
+        public void RecordConnect(uint peerId)
         {
             _connectedCount++;
+            _lastConnectPeerId = peerId;
             MarkEvent(ref _lastConnectTicks);
         }
 
-        public void RecordDisconnect()
+        public void RecordDisconnect(uint peerId)
         {
             _disconnectedCount++;
+            _lastDisconnectPeerId = peerId;
             MarkEvent(ref _lastDisconnectTicks);
         }
 
-        public void RecordTimeout()
+        public void RecordTimeout(uint peerId)
         {
             _timeoutCount++;
+            _lastTimeoutPeerId = peerId;
             MarkEvent(ref _lastTimeoutTicks);
         }
 
@@ -386,6 +396,9 @@ public abstract class ENetServer : ENetLow
             long lastConnectTicks = _lastConnectTicks;
             long lastDisconnectTicks = _lastDisconnectTicks;
             long lastTimeoutTicks = _lastTimeoutTicks;
+            uint lastConnectPeerId = _lastConnectPeerId;
+            uint lastDisconnectPeerId = _lastDisconnectPeerId;
+            uint lastTimeoutPeerId = _lastTimeoutPeerId;
 
             _connectedCount = 0;
             _disconnectedCount = 0;
@@ -395,16 +408,19 @@ public abstract class ENetServer : ENetLow
             _lastConnectTicks = 0;
             _lastDisconnectTicks = 0;
             _lastTimeoutTicks = 0;
+            _lastConnectPeerId = 0;
+            _lastDisconnectPeerId = 0;
+            _lastTimeoutPeerId = 0;
 
             double reportSeconds = Math.Max(windowSeconds, 0.01);
 
             List<(long Tick, Action LogAction)> entries = new(3);
             if (connects > 0)
-                entries.Add((lastConnectTicks, () => log($"{FormatCount("client", connects)} connected{FormatLastSuffix(connects, reportSeconds)}")));
+                entries.Add((lastConnectTicks, () => log(FormatConnectMessage(connects, lastConnectPeerId, reportSeconds))));
             if (disconnects > 0)
-                entries.Add((lastDisconnectTicks, () => log($"{FormatCount("client", disconnects)} disconnected{FormatLastSuffix(disconnects, reportSeconds)}")));
+                entries.Add((lastDisconnectTicks, () => log(FormatDisconnectMessage(disconnects, lastDisconnectPeerId, reportSeconds))));
             if (timeouts > 0)
-                entries.Add((lastTimeoutTicks, () => log($"{FormatCount("client", timeouts)} timed out{FormatLastSuffix(timeouts, reportSeconds)}")));
+                entries.Add((lastTimeoutTicks, () => log(FormatTimeoutMessage(timeouts, lastTimeoutPeerId, reportSeconds))));
 
             entries.Sort(static (a, b) => a.Tick.CompareTo(b.Tick));
             foreach (var entry in entries)
@@ -435,6 +451,30 @@ public abstract class ENetServer : ENetLow
                 return string.Empty;
 
             return $" (last {seconds:0.##}s)";
+        }
+
+        private static string FormatConnectMessage(int count, uint peerId, double seconds)
+        {
+            if (count == 1)
+                return $"Client with id {peerId} connected";
+
+            return $"{FormatCount("client", count)} connected{FormatLastSuffix(count, seconds)}";
+        }
+
+        private static string FormatDisconnectMessage(int count, uint peerId, double seconds)
+        {
+            if (count == 1)
+                return $"Client with id {peerId} disconnected";
+
+            return $"{FormatCount("client", count)} disconnected{FormatLastSuffix(count, seconds)}";
+        }
+
+        private static string FormatTimeoutMessage(int count, uint peerId, double seconds)
+        {
+            if (count == 1)
+                return $"Client with id {peerId} timed out";
+
+            return $"{FormatCount("client", count)} timed out{FormatLastSuffix(count, seconds)}";
         }
     }
 }
