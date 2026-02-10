@@ -24,7 +24,7 @@ public partial class World : Node2D
         _netControlPanel.Net.ClientCreated += OnClientCreated;
         _netControlPanel.Net.ClientDestroyed += OnClientDestroyed;
         SetProcess(false);
-        StartStressTest();
+        _stressTest = new WorldStressTest(this);
     }
 
     public override void _ExitTree()
@@ -207,8 +207,6 @@ public partial class World : Node2D
 
     private void StartStressTest()
     {
-        _stressTest ??= new WorldStressTest(this);
-        _stressTest.Start();
-        SetProcess(true);
+        _stressTest?.Start();
     }
 }

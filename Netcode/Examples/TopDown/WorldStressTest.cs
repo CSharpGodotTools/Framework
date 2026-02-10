@@ -66,7 +66,10 @@ public partial class World
                 return;
 
             _started = true;
+            _paused = false;
+            _spawnAccumulator = 0f;
             ApplySettingsFromUi();
+            _world.SetProcess(true);
             EnsureServerRunning();
             EnsureLocalClientRunning();
             SpawnBot();
