@@ -8,15 +8,12 @@ namespace Framework.Netcode.Examples.Topdown;
 public partial class World : Node2D
 {
     private const float PlayerSize = 18f;
-    private const float RemoteLerpSpeed = 6f;
 
     private NetControlPanel _netControlPanel;
     private GameClient _client;
     private WorldStressTest _stressTest;
-
     private LocalPlayer _localPlayer;
-    private readonly Dictionary<uint, ColorRect> _remotePlayers = [];
-    private readonly Dictionary<uint, Vector2> _remoteTargets = [];
+    private RemotePlayers _remotePlayers;
 
     public override void _Ready()
     {
@@ -24,6 +21,8 @@ public partial class World : Node2D
         _netControlPanel.Net.ClientCreated += OnClientCreated;
         _netControlPanel.Net.ClientDestroyed += OnClientDestroyed;
         SetProcess(false);
+        _localPlayer = new LocalPlayer(this);
+        _remotePlayers = new RemotePlayers(this);
         _stressTest = new WorldStressTest(this);
     }
 
@@ -37,6 +36,8 @@ public partial class World : Node2D
 
         _stressTest?.Stop();
         _stressTest = null;
+        _localPlayer = null;
+        _remotePlayers = null;
         DetachClient();
     }
 
@@ -44,7 +45,7 @@ public partial class World : Node2D
     {
         float deltaSeconds = (float)delta;
         _localPlayer?.Tick(deltaSeconds);
-        UpdateRemotePlayers(deltaSeconds);
+        _remotePlayers?.Tick(deltaSeconds);
         _stressTest?.Tick(deltaSeconds);
     }
 
@@ -60,6 +61,7 @@ public partial class World : Node2D
         _client.RemotePlayerJoined += OnRemotePlayerJoined;
         _client.RemotePlayerLeft += OnRemotePlayerLeft;
         _client.RemotePositionsUpdated += OnRemotePositionsUpdated;
+        _localPlayer?.AttachClient(gameClient);
     }
 
     private void OnClientDestroyed(GodotClient client)
@@ -79,8 +81,8 @@ public partial class World : Node2D
 
     private void OnClientConnected()
     {
-        EnsureLocalPlayer();
-        _localPlayer.ResetAtCenter();
+        _localPlayer?.EnsureLocalPlayer();
+        _localPlayer?.ResetAtCenter();
         TryEnableProcessing();
     }
 
@@ -91,94 +93,43 @@ public partial class World : Node2D
 
     private void OnLocalPlayerReady(uint _)
     {
-        EnsureLocalPlayer();
+        _localPlayer?.EnsureLocalPlayer();
         TryEnableProcessing();
     }
 
     private void OnRemotePlayerJoined(uint id)
     {
-        EnsureRemotePlayer(id);
+        _remotePlayers?.EnsureRemote(id);
     }
 
     private void OnRemotePlayerLeft(uint id)
     {
-        RemovePlayer(id);
+        _remotePlayers?.Remove(id);
     }
 
     private void OnRemotePositionsUpdated(IReadOnlyDictionary<uint, Vector2> positions)
     {
-        foreach (KeyValuePair<uint, Vector2> kvp in positions)
-        {
-            ColorRect rect = EnsureRemotePlayer(kvp.Key);
-            if (!_remoteTargets.ContainsKey(kvp.Key))
-                rect.Position = kvp.Value;
-
-            _remoteTargets[kvp.Key] = kvp.Value;
-        }
+        _remotePlayers?.UpdateTargets(positions);
     }
 
     private void DetachClient()
     {
         _client = null;
+        _localPlayer?.DetachClient();
         if (_stressTest == null || !_stressTest.IsRunning)
             SetProcess(false);
         ClearPlayers();
     }
 
-    private void EnsureLocalPlayer()
-    {
-        if (_localPlayer != null)
-            return;
-
-        _localPlayer = new LocalPlayer(this, _client);
-    }
-
-    private ColorRect EnsureRemotePlayer(uint id)
-    {
-        if (_remotePlayers.TryGetValue(id, out ColorRect rect))
-            return rect;
-
-        rect = CreatePlayerRect(new Color(1f, 0.55f, 0.2f));
-        rect.Name = $"Player_{id}";
-        rect.Position = GetScreenCenter();
-        _remotePlayers[id] = rect;
-        AddChild(rect);
-        return rect;
-    }
-
-    private void RemovePlayer(uint id)
-    {
-        if (_remotePlayers.TryGetValue(id, out ColorRect rect))
-        {
-            rect.QueueFree();
-            _remotePlayers.Remove(id);
-            _remoteTargets.Remove(id);
-        }
-    }
-
     internal void ClearRemotePlayers()
     {
-        foreach (ColorRect rect in _remotePlayers.Values)
-        {
-            rect.QueueFree();
-        }
-
-        _remotePlayers.Clear();
-        _remoteTargets.Clear();
+        _remotePlayers?.ClearAll();
     }
 
     private void ClearPlayers()
     {
-        _localPlayer?.QueueFree();
-        _localPlayer = null;
-
-        foreach (ColorRect rect in _remotePlayers.Values)
-        {
-            rect.QueueFree();
-        }
-
-        _remotePlayers.Clear();
-        _remoteTargets.Clear();
+        _localPlayer?.Clear();
+        _remotePlayers?.ClearAll();
     }
 
     public static ColorRect CreatePlayerRect(Color color)
@@ -197,22 +148,8 @@ public partial class World : Node2D
 
     private void TryEnableProcessing()
     {
-        if (_client != null && _client.IsConnected && _localPlayer != null && _client.HasLocalId)
+        if (_client != null && _client.IsConnected && _localPlayer != null && _localPlayer.HasLocalPlayer && _client.HasLocalId)
             SetProcess(true);
-    }
-
-    private void UpdateRemotePlayers(float deltaSeconds)
-    {
-        if (_remoteTargets.Count == 0)
-            return;
-
-        float t = 1f - Mathf.Exp(-RemoteLerpSpeed * deltaSeconds);
-
-        foreach (KeyValuePair<uint, Vector2> kvp in _remoteTargets)
-        {
-            if (_remotePlayers.TryGetValue(kvp.Key, out ColorRect rect))
-                rect.Position = rect.Position.Lerp(kvp.Value, t);
-        }
     }
 
     private void StartStressTest()
