@@ -204,7 +204,7 @@ public partial class World
                 return false;
 
             if (!_serverStartedByStressTest)
-                return true;
+                return false;
 
             if (_lastServerPort != _port || _lastServerMaxClients != _maxClients)
                 return true;
@@ -216,6 +216,9 @@ public partial class World
         {
             Net net = _world._netControlPanel?.Net;
             if (net?.Server == null)
+                return;
+
+            if (!_serverStartedByStressTest)
                 return;
 
             _serverRestartPending = true;
