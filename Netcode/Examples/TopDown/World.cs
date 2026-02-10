@@ -81,7 +81,6 @@ public partial class World : Node2D
     {
         EnsureLocalPlayer();
         _localPlayer.ResetAtCenter();
-        _stressTest?.Start();
         TryEnableProcessing();
     }
 
