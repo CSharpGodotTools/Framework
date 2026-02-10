@@ -116,6 +116,7 @@ public partial class World
             StopBots();
             _started = false;
             _paused = false;
+            _world.ClearRemotePlayers();
         }
 
         private void SpawnBot()

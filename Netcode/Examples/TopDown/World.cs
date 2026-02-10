@@ -157,6 +157,17 @@ public partial class World : Node2D
         }
     }
 
+    internal void ClearRemotePlayers()
+    {
+        foreach (ColorRect rect in _remotePlayers.Values)
+        {
+            rect.QueueFree();
+        }
+
+        _remotePlayers.Clear();
+        _remoteTargets.Clear();
+    }
+
     private void ClearPlayers()
     {
         _localPlayer?.QueueFree();
