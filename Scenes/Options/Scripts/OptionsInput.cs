@@ -104,6 +104,8 @@ public partial class OptionsInput : IDisposable
 
         private HotkeyButtonInfo _current;
         private bool _listeningOnPlus;
+        private bool _actionSuppressed;
+        private StringName _suppressedAction;
 
         public HotkeyEditor(HotkeyStore store, HotkeyListView view, string removeHotkeyAction, string fullscreenAction)
         {
@@ -119,8 +121,11 @@ public partial class OptionsInput : IDisposable
         {
             _current = info;
             _listeningOnPlus = fromPlus;
+            _actionSuppressed = true;
+            _suppressedAction = info.Action;
 
             _view.ShowListening(info);
+            _store.SuppressAction(info.Action);
         }
 
         public void HandleInput(InputEvent @event)
@@ -146,6 +151,12 @@ public partial class OptionsInput : IDisposable
 
         public void Clear()
         {
+            if (_actionSuppressed)
+            {
+                _store.SyncAction(_suppressedAction);
+                _actionSuppressed = false;
+            }
+
             _current = null;
             _listeningOnPlus = false;
         }
@@ -241,7 +252,6 @@ public partial class OptionsInput : IDisposable
             if (@event == null)
                 return;
 
-            InputMap.ActionEraseEvent(action, @event);
             Actions[action].Remove(@event);
         }
 
@@ -249,11 +259,6 @@ public partial class OptionsInput : IDisposable
         {
             Actions[action].Remove(oldEvent);
             Actions[action].Add(newEvent);
-
-            if (oldEvent != null)
-                InputMap.ActionEraseEvent(action, oldEvent);
-
-            InputMap.ActionAddEvent(action, newEvent);
         }
 
         public bool HasDuplicate(StringName action, InputEvent candidate)
@@ -271,6 +276,30 @@ public partial class OptionsInput : IDisposable
         public void ResetToDefaults()
         {
             _options.ResetHotkeys();
+        }
+
+        public void SuppressAction(StringName action)
+        {
+            Array<InputEvent> events = InputMap.ActionGetEvents(action);
+            for (int i = 0; i < events.Count; i++)
+            {
+                InputMap.ActionEraseEvent(action, events[i]);
+            }
+        }
+
+        public void SyncAction(StringName action)
+        {
+            Array<InputEvent> existing = InputMap.ActionGetEvents(action);
+            for (int i = 0; i < existing.Count; i++)
+            {
+                InputMap.ActionEraseEvent(action, existing[i]);
+            }
+
+            Array<InputEvent> stored = Actions[action];
+            for (int i = 0; i < stored.Count; i++)
+            {
+                InputMap.ActionAddEvent(action, stored[i]);
+            }
         }
 
         private static bool EventsMatch(InputEvent left, InputEvent right)
