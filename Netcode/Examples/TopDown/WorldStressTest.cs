@@ -10,7 +10,7 @@ public partial class World
     private sealed class WorldStressTest
     {
         private const int TargetClients = 10;
-        private const float SpawnIntervalSeconds = 0.1f;
+        private const float SpawnIntervalSeconds = 0.3f;
         private const float CircleRadius = 90f;
         private const float AngularSpeed = Mathf.Pi * 2f / 6f;
         private const float SendIntervalSeconds = 0.05f;
