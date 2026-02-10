@@ -76,6 +76,7 @@ public partial class World
             _paused = false;
             _spawnAccumulator = 0f;
             ApplySettingsFromUi();
+            ApplyRunningServerSettings();
             _world.SetProcess(true);
             if (ShouldRestartServer())
             {
@@ -165,6 +166,22 @@ public partial class World
                 return;
 
             StartServerWithSettings();
+        }
+
+        private void ApplyRunningServerSettings()
+        {
+            if (IsServerRunning())
+            {
+                Net net = _world._netControlPanel?.Net;
+                if (net != null)
+                {
+                    _port = net.ServerPort;
+                    _maxClients = net.ServerMaxClients;
+                }
+
+                if (_targetClients > _maxClients)
+                    _targetClients = _maxClients;
+            }
         }
 
         private void EnsureLocalClientRunning()
