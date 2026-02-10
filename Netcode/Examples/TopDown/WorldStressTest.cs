@@ -10,13 +10,13 @@ public partial class World
 {
     private sealed class WorldStressTest
     {
-        private const int DefaultTargetClients = 10;
-        private const float DefaultSpawnIntervalSeconds = 0.3f;
-        private const float DefaultCircleRadius = 90f;
+        private const int DefaultTargetClients = 250;
+        private const float DefaultSpawnIntervalSeconds = 0.01f;
+        private const float DefaultCircleRadius = 200f;
         private const float DefaultAngularSpeed = Mathf.Pi * 2f / 6f;
         private const float DefaultSendIntervalSeconds = 0.05f;
         private const ushort DefaultPort = 25565;
-        private const int DefaultMaxClients = 100;
+        private const int DefaultMaxClients = 500;
 
         private readonly World _world;
         private readonly List<BotClient> _bots = [];
@@ -59,6 +59,8 @@ public partial class World
             _sendIntervalInput = _world.GetNode<LineEdit>("%SendInterval");
             _portInput = _world.GetNode<LineEdit>("%StressPort");
             _maxClientsInput = _world.GetNode<LineEdit>("%StressMaxClients");
+
+            SetUiDefaults();
 
             _startButton.Pressed += OnStartPressed;
             _stopButton.Pressed += OnStopPressed;
@@ -239,6 +241,17 @@ public partial class World
         private void OnStopPressed()
         {
             Stop();
+        }
+
+        private void SetUiDefaults()
+        {
+            _targetClientsInput.Text = DefaultTargetClients.ToString(CultureInfo.InvariantCulture);
+            _spawnIntervalInput.Text = DefaultSpawnIntervalSeconds.ToString(CultureInfo.InvariantCulture);
+            _circleRadiusInput.Text = DefaultCircleRadius.ToString(CultureInfo.InvariantCulture);
+            _angularSpeedInput.Text = DefaultAngularSpeed.ToString(CultureInfo.InvariantCulture);
+            _sendIntervalInput.Text = DefaultSendIntervalSeconds.ToString(CultureInfo.InvariantCulture);
+            _portInput.Text = DefaultPort.ToString(CultureInfo.InvariantCulture);
+            _maxClientsInput.Text = DefaultMaxClients.ToString(CultureInfo.InvariantCulture);
         }
 
         private void ApplySettingsFromUi()
