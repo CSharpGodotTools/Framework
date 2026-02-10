@@ -40,6 +40,10 @@ public partial class World
         private float _spawnAccumulator;
         private bool _started;
         private bool _paused;
+        private bool _serverRestartPending;
+        private bool _serverStartedByStressTest;
+        private ushort _lastServerPort = DefaultPort;
+        private int _lastServerMaxClients = DefaultMaxClients;
 
         public bool IsRunning => _started;
 
@@ -70,15 +74,38 @@ public partial class World
             _spawnAccumulator = 0f;
             ApplySettingsFromUi();
             _world.SetProcess(true);
+            if (ShouldRestartServer())
+            {
+                RequestServerRestart();
+                return;
+            }
+
             EnsureServerRunning();
+            _paused = !IsServerRunning();
             EnsureLocalClientRunning();
-            SpawnBot();
+
+            if (!_paused)
+                SpawnBot();
         }
 
         public void Tick(float deltaSeconds)
         {
             if (!_started)
                 return;
+
+            if (_serverRestartPending)
+            {
+                if (!IsServerRunning())
+                {
+                    StartServerWithSettings();
+                    _serverRestartPending = false;
+                    _paused = false;
+                    _spawnAccumulator = 0f;
+                    SpawnBot();
+                }
+
+                return;
+            }
 
             if (!IsServerRunning())
             {
@@ -134,7 +161,7 @@ public partial class World
             if (net?.Server == null || net.Server.IsRunning)
                 return;
 
-            net.StartServer(_port, _maxClients, CreateSilentOptions());
+            StartServerWithSettings();
         }
 
         private void EnsureLocalClientRunning()
@@ -153,6 +180,45 @@ public partial class World
         {
             Net net = _world._netControlPanel?.Net;
             return net?.Server != null && net.Server.IsRunning;
+        }
+
+        private void StartServerWithSettings()
+        {
+            Net net = _world._netControlPanel?.Net;
+            if (net == null)
+                return;
+
+            net.StartServer(_port, _maxClients, CreateSilentOptions());
+            _serverStartedByStressTest = true;
+            _lastServerPort = _port;
+            _lastServerMaxClients = _maxClients;
+        }
+
+        private bool ShouldRestartServer()
+        {
+            Net net = _world._netControlPanel?.Net;
+            if (net?.Server == null || !net.Server.IsRunning)
+                return false;
+
+            if (!_serverStartedByStressTest)
+                return true;
+
+            if (_lastServerPort != _port || _lastServerMaxClients != _maxClients)
+                return true;
+
+            return false;
+        }
+
+        private void RequestServerRestart()
+        {
+            Net net = _world._netControlPanel?.Net;
+            if (net?.Server == null)
+                return;
+
+            _serverRestartPending = true;
+            _paused = true;
+            StopBots();
+            net.StopServer();
         }
 
         private void StopBots()
