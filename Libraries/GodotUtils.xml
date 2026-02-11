@@ -2511,6 +2511,7 @@
         <member name="M:GodotUtils.TaskUtils.FireAndForget(System.Func{System.Threading.Tasks.Task})">
             <summary>
             Runs a task and logs any errors, intended for fire-and-forget usage.
+            <para>For example:</para>
             <code>TaskUtils.FireAndForget(() =&gt; ExitGame());</code>
             </summary>
         </member>
