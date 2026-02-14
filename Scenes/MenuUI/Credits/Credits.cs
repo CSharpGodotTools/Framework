@@ -167,35 +167,6 @@ public partial class Credits : Node
         }
     }
 
-#pragma warning disable IDE1006 // Naming Styles
-    private void _OnPausePressed()
-    {
-        _paused = !_paused;
-        _btnPause.Text = _paused ? PauseText : ResumeText;
-    }
-
-    private void _OnSpeedPressed()
-    {
-        if (_curSpeedSetting < NumSpeedSettings)
-        {
-            _curSpeedSetting++;
-            _btnSpeed.Text = $"{_curSpeedSetting}.0x";
-            _speed += SpeedBoostOffset;
-        }
-        else
-        {
-            _curSpeedSetting = 1;
-            _btnSpeed.Text = $"{_curSpeedSetting}.0x";
-            _speed = StartingSpeed;
-        }
-    }
-
-    private void _OnReversePressed()
-    {
-        _direction = -_direction;
-        _btnReverse.Text = _direction > 0 ? ForwardText : ReverseText;
-    }
-#pragma warning restore IDE1006 // Naming Styles
     private static HBoxContainer GetHBoxTextWithLink(string text)
     {
         // Find the start of the URL
@@ -234,5 +205,33 @@ public partial class Credits : Node
             hbox.AddChild(LabelFactory.Create(rightText));
 
         return hbox;
+    }
+
+    private void OnPausePressed()
+    {
+        _paused = !_paused;
+        _btnPause.Text = _paused ? PauseText : ResumeText;
+    }
+
+    private void OnSpeedPressed()
+    {
+        if (_curSpeedSetting < NumSpeedSettings)
+        {
+            _curSpeedSetting++;
+            _btnSpeed.Text = $"{_curSpeedSetting}.0x";
+            _speed += SpeedBoostOffset;
+        }
+        else
+        {
+            _curSpeedSetting = 1;
+            _btnSpeed.Text = $"{_curSpeedSetting}.0x";
+            _speed = StartingSpeed;
+        }
+    }
+
+    private void OnReversePressed()
+    {
+        _direction = -_direction;
+        _btnReverse.Text = _direction > 0 ? ForwardText : ReverseText;
     }
 }

@@ -58,38 +58,37 @@ public partial class MainMenuNav : Node
     }
 
     // Subscribers
-#pragma warning disable IDE1006 // Naming Styles
-    private void _OnPlayPressed()
+    private void OnPlayPressed()
     {
         _scene.SwitchTo(_gameScene);
     }
 
-    private void _OnModsPressed()
+    private void OnModsPressed()
     {
         _scene.SwitchToModLoader();
     }
 
-    private void _OnOptionsPressed()
+    private void OnOptionsPressed()
     {
         _scene.SwitchToOptions();
     }
 
-    private void _OnCreditsPressed()
+    private void OnCreditsPressed()
     {
         _scene.SwitchToCredits();
     }
 
-    private async static void _OnQuitPressed()
+    private async static void OnQuitPressed()
     {
         await Autoloads.Instance.ExitGame();
     }
 
-    private static void _OnDiscordPressed()
+    private static void OnDiscordPressed()
     {
         OS.ShellOpen("https://discord.gg/j8HQZZ76r8");
     }
 
-    private static void _OnGitHubPressed()
+    private static void OnGitHubPressed()
     {
         OS.ShellOpen("https://github.com/ValksGodotTools/Template");
     }
@@ -98,5 +97,4 @@ public partial class MainMenuNav : Node
     {
         FocusOnPlayBtn();
     }
-#pragma warning restore IDE1006 // Naming Styles
 }

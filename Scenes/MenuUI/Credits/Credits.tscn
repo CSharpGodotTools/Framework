@@ -53,6 +53,6 @@ custom_minimum_size = Vector2(75, 0)
 layout_mode = 2
 text = "1.0x"
 
-[connection signal="pressed" from="MarginContainer/HBox/Reverse" to="." method="_OnReversePressed"]
-[connection signal="pressed" from="MarginContainer/HBox/Pause" to="." method="_OnPausePressed"]
-[connection signal="pressed" from="MarginContainer/HBox/Speed" to="." method="_OnSpeedPressed"]
+[connection signal="pressed" from="MarginContainer/HBox/Reverse" to="." method="OnReversePressed"]
+[connection signal="pressed" from="MarginContainer/HBox/Pause" to="." method="OnPausePressed"]
+[connection signal="pressed" from="MarginContainer/HBox/Speed" to="." method="OnSpeedPressed"]

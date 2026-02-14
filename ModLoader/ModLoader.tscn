@@ -149,5 +149,5 @@ text = "Restart Game"
 layout_mode = 2
 text = "Open Mods Folder"
 
-[connection signal="pressed" from="MarginContainer/VBoxContainer/Buttons Nav/MarginContainer/HBoxContainer2/Restart Game" to="." method="_OnRestartGamePressed"]
-[connection signal="pressed" from="MarginContainer/VBoxContainer/Buttons Nav/MarginContainer/HBoxContainer2/Open Mods Folder" to="." method="_OnOpenModsFolderPressed"]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/Buttons Nav/MarginContainer/HBoxContainer2/Restart Game" to="." method="OnRestartGamePressed"]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/Buttons Nav/MarginContainer/HBoxContainer2/Open Mods Folder" to="." method="OnOpenModsFolderPressed"]

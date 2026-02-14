@@ -56,8 +56,6 @@ public class MetricsOverlay
             { "Total Draw Calls",       (false, () => $"{Retrieve(Monitor.RenderTotalDrawCallsInFrame)}") },
         };
 
-        // Perfect example of where var is useful...
-#pragma warning disable IDE0008 // Use explicit type
         foreach (var metric in metrics)
         {
             if (metric.Value.Enabled)
@@ -65,7 +63,6 @@ public class MetricsOverlay
                 _currentMetrics.Add(metric.Key, metric.Value.ValueProvider);
             }
         }
-#pragma warning restore IDE0008 // Use explicit type
     }
 
     public void Update()

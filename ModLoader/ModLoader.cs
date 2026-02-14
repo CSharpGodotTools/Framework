@@ -85,19 +85,15 @@ public partial class ModLoader : Node
         _uiAuthors.Text = modInfo.Author;
     }
 
-#pragma warning disable IDE1006 // Naming Styles
-#pragma warning disable CA1822 // Mark members as static
-    private async void _OnRestartGamePressed()
+    private async static void OnRestartGamePressed()
     {
         //OS.CreateProcess(OS.GetExecutablePath(), null);
         OS.CreateInstance(null);
         await Autoloads.Instance.ExitGame();
     }
 
-    private static void _OnOpenModsFolderPressed()
+    private static void OnOpenModsFolderPressed()
     {
         Process.Start(new ProcessStartInfo(@$"{ProjectSettings.GlobalizePath("res://Mods")}") { UseShellExecute = true });
     }
-#pragma warning restore CA1822 // Mark members as static
-#pragma warning restore IDE1006 // Naming Styles
 }

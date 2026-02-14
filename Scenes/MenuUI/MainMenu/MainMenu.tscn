@@ -68,10 +68,10 @@ custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
 text = "GitHub"
 
-[connection signal="pressed" from="Nav/Play" to="Nav" method="_OnPlayPressed"]
-[connection signal="pressed" from="Nav/Mods" to="Nav" method="_OnModsPressed"]
-[connection signal="pressed" from="Nav/Options" to="Nav" method="_OnOptionsPressed"]
-[connection signal="pressed" from="Nav/Credits" to="Nav" method="_OnCreditsPressed"]
-[connection signal="pressed" from="Nav/Quit" to="Nav" method="_OnQuitPressed"]
-[connection signal="pressed" from="Socials/HBox/Discord" to="Nav" method="_OnDiscordPressed"]
-[connection signal="pressed" from="Socials/HBox/Github" to="Nav" method="_OnGitHubPressed"]
+[connection signal="pressed" from="Nav/Play" to="Nav" method="OnPlayPressed"]
+[connection signal="pressed" from="Nav/Mods" to="Nav" method="OnModsPressed"]
+[connection signal="pressed" from="Nav/Options" to="Nav" method="OnOptionsPressed"]
+[connection signal="pressed" from="Nav/Credits" to="Nav" method="OnCreditsPressed"]
+[connection signal="pressed" from="Nav/Quit" to="Nav" method="OnQuitPressed"]
+[connection signal="pressed" from="Socials/HBox/Discord" to="Nav" method="OnDiscordPressed"]
+[connection signal="pressed" from="Socials/HBox/Github" to="Nav" method="OnGitHubPressed"]
