@@ -60,7 +60,8 @@ public partial class MainMenuNav : Node
     // Subscribers
     private void OnPlayPressed()
     {
-        _scene.SwitchTo(_gameScene);
+        GD.Print($"Remove this message and set the game scene (it is currently {(_gameScene == null ? "not set" : "set")})");
+        //_scene.SwitchTo(_gameScene);
     }
 
     private void OnModsPressed()
