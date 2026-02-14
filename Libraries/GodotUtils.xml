@@ -229,16 +229,6 @@
             Iterates over the sequence and invokes <paramref name="action"/> for each element.
             </summary>
         </member>
-        <member name="M:GodotUtils.ExtensionsCollection.Duplicate``2(System.Collections.Generic.IDictionary{``0,``1},``0,System.Int32,System.String,System.String)">
-            <summary>
-            Returns true when the dictionary already contains the key.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.ExtensionsCollection.DoesNotHave``2(System.Collections.Generic.IDictionary{``0,``1},``0,System.Int32,System.String,System.String)">
-            <summary>
-            Returns true when the dictionary does not contain the key.
-            </summary>
-        </member>
         <member name="T:GodotUtils.CollisionObject2DExtensions">
             <summary>
             Extension helpers for 2D collision objects.
@@ -1114,7 +1104,7 @@
         </member>
         <member name="M:GodotUtils.ColorPickerButtonFactory.Create(Godot.Color)">
             <summary>
-            Creates a color picker button with a preset initial color.
+            Creates a <see cref="T:Godot.ColorPickerButton"/> with <paramref name="defaultColor"/>.
             </summary>
         </member>
         <member name="T:GodotUtils.GodotTimerFactory">
@@ -1200,16 +1190,6 @@
         <member name="M:GodotUtils.MarginContainerFactory.Create(System.Int32,System.Int32,System.Int32,System.Int32)">
             <summary>
             Creates a margin container with per-side padding.
-            </summary>
-        </member>
-        <member name="T:GodotUtils.SystemTimerFactory">
-            <summary>
-            Factory helpers for system timers.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.SystemTimerFactory.Create(System.Double,System.Action,System.Boolean,System.Boolean)">
-            <summary>
-            Creates and configures a system timer.
             </summary>
         </member>
         <member name="T:GodotUtils.BaseTween`1">
