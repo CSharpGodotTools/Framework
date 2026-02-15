@@ -1,43 +1,37 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Framework.UI.Console;
 
 public partial class GameConsole : Node
 {
-    // Config
     private const int MaxTextFeed = 1000;
 
-    // Variables
     private readonly List<ConsoleCommandInfo> _commands = [];
     private readonly ConsoleHistory _history = new();
-    private PanelContainer           _mainContainer;
-    private PopupPanel               _settingsPopup;
-    private CheckBox                 _settingsAutoScroll;
-    private TextEdit                 _feed;
-    private LineEdit                 _input;
-    private Button                   _settingsBtn;
-    private bool                     _autoScroll = true;
+    private readonly Queue<string> _pendingMessages = [];
 
-    // Godot Overrides
+    private PanelContainer _mainContainer;
+    private PopupPanel _settingsPopup;
+    private CheckBox _settingsAutoScroll;
+    private TextEdit _feed;
+    private LineEdit _input;
+    private Button _settingsBtn;
+
+    private bool _autoScroll = true;
+    private bool _isReady;
+
+    public bool Visible => _mainContainer.Visible;
+
     public override void _Ready()
     {
-        _feed          = GetNode<TextEdit>("%Output");
-        _input         = GetNode<LineEdit>("%CmdsInput");
-        _settingsBtn   = GetNode<Button>("%Settings");
-        _mainContainer = GetNode<PanelContainer>("%MainContainer");
-        _settingsPopup = GetNode<PopupPanel>("%PopupPanel");
-
-        _settingsAutoScroll = GetNode<CheckBox>("%PopupAutoScroll");
-        _settingsAutoScroll.ButtonPressed = _autoScroll;
-
-        _input.TextSubmitted += OnConsoleInputEntered;
-        _settingsBtn.Pressed += OnSettingsBtnPressed;
-        _settingsAutoScroll.Toggled += OnAutoScrollToggled;
+        CacheNodes();
+        BindEvents();
 
         _mainContainer.Hide();
+        _isReady = true;
+        FlushPendingMessages();
     }
 
     public override void _Process(double delta)
@@ -48,17 +42,14 @@ public partial class GameConsole : Node
             return;
         }
 
-        InputNavigateHistory();
+        HandleHistoryNavigation();
     }
 
     public override void _ExitTree()
     {
-        _input.TextSubmitted -= OnConsoleInputEntered;
-        _settingsBtn.Pressed -= OnSettingsBtnPressed;
-        _settingsAutoScroll.Toggled -= OnAutoScrollToggled;
+        UnbindEvents();
     }
 
-    // API
     public List<ConsoleCommandInfo> GetCommands()
     {
         return _commands;
@@ -73,54 +64,95 @@ public partial class GameConsole : Node
         };
 
         _commands.Add(info);
-
         return info;
     }
 
     public void AddMessage(object message)
     {
-        double prevScroll = _feed.ScrollVertical;
-        
-        // Prevent text feed from becoming too large
-        if (_feed.Text.Length > MaxTextFeed)
+        string line = $"\n{message}";
+
+        if (!_isReady)
         {
-            // If there are say 2353 characters then 2353 - 1000 = 1353 characters
-            // which is how many characters we need to remove to get back down to
-            // 1000 characters
-            _feed.Text = _feed.Text[^MaxTextFeed..];
+            _pendingMessages.Enqueue(line);
+            return;
         }
 
-        _feed.Text += $"\n{message}";
-
-        // Removing text from the feed will mess up the scroll, this is why the
-        // scroll value was stored previous, we set this to that value now to fix
-        // this
-        _feed.ScrollVertical = prevScroll;
-
-        // Autoscroll if enabled
-        ScrollDown();
+        AppendMessage(line);
     }
-
-    public bool Visible => _mainContainer.Visible;
 
     public void ToggleVisibility()
     {
-        _mainContainer.Visible = !_mainContainer.Visible;
-
         if (_mainContainer.Visible)
         {
-            _input.GrabFocus();
-            CallDeferred(nameof(ScrollDown));
+            CloseConsole();
+            return;
         }
-        else
+
+        OpenConsole();
+    }
+
+    private void CacheNodes()
+    {
+        _feed = GetNode<TextEdit>("%Output");
+        _input = GetNode<LineEdit>("%CmdsInput");
+        _settingsBtn = GetNode<Button>("%Settings");
+        _mainContainer = GetNode<PanelContainer>("%MainContainer");
+        _settingsPopup = GetNode<PopupPanel>("%PopupPanel");
+
+        _settingsAutoScroll = GetNode<CheckBox>("%PopupAutoScroll");
+        _settingsAutoScroll.ButtonPressed = _autoScroll;
+    }
+
+    private void BindEvents()
+    {
+        _input.TextSubmitted += OnConsoleInputEntered;
+        _settingsBtn.Pressed += OnSettingsBtnPressed;
+        _settingsAutoScroll.Toggled += OnAutoScrollToggled;
+    }
+
+    private void UnbindEvents()
+    {
+        _input.TextSubmitted -= OnConsoleInputEntered;
+        _settingsBtn.Pressed -= OnSettingsBtnPressed;
+        _settingsAutoScroll.Toggled -= OnAutoScrollToggled;
+    }
+
+    private void FlushPendingMessages()
+    {
+        while (_pendingMessages.TryDequeue(out string message))
         {
-            // Console was closed
-            GameFramework.FocusOutline.ClearFocus();
+            AppendMessage(message);
         }
     }
 
-    // Private Methods
-    private void ScrollDown()
+    private void AppendMessage(string line)
+    {
+        double previousScroll = _feed.ScrollVertical;
+        _feed.Text += line;
+
+        if (_feed.Text.Length > MaxTextFeed)
+        {
+            _feed.Text = _feed.Text[^MaxTextFeed..];
+        }
+
+        _feed.ScrollVertical = previousScroll;
+        ScrollDownIfEnabled();
+    }
+
+    private void OpenConsole()
+    {
+        _mainContainer.Show();
+        _input.GrabFocus();
+        CallDeferred(nameof(ScrollDownIfEnabled));
+    }
+
+    private void CloseConsole()
+    {
+        _mainContainer.Hide();
+        GameFramework.FocusOutline.ClearFocus();
+    }
+
+    private void ScrollDownIfEnabled()
     {
         if (_autoScroll)
         {
@@ -134,59 +166,77 @@ public partial class GameConsole : Node
         if (parts.Length == 0)
             return false;
 
-        string cmd = parts[0];
-        if (!TryGetCommand(cmd, out ConsoleCommandInfo cmdInfo))
+        string commandName = parts[0];
+        if (!TryGetCommand(commandName, out ConsoleCommandInfo commandInfo))
         {
-            GameFramework.Logger.Log($"The command '{cmd}' does not exist");
+            GameFramework.Logger.Log($"The command '{commandName}' does not exist");
             return false;
         }
 
-        string[] args = [.. parts.Skip(1)];
+        int argCount = parts.Length - 1;
+        string[] args = new string[argCount];
+        for (int index = 0; index < argCount; index++)
+        {
+            args[index] = parts[index + 1];
+        }
 
-        cmdInfo.Code.Invoke(args);
-
+        commandInfo.Code.Invoke(args);
         return true;
     }
 
     private bool TryGetCommand(string text, out ConsoleCommandInfo commandInfo)
     {
-        commandInfo = _commands.Find(IsMatchingCommand);
-        return commandInfo != null;
-
-        bool IsMatchingCommand(ConsoleCommandInfo cmd)
+        for (int commandIndex = 0; commandIndex < _commands.Count; commandIndex++)
         {
-            if (string.Equals(cmd.Name, text, StringComparison.OrdinalIgnoreCase))
+            ConsoleCommandInfo candidate = _commands[commandIndex];
+            if (IsCommandMatch(candidate, text))
+            {
+                commandInfo = candidate;
                 return true;
-
-            return cmd.Aliases != null && cmd.Aliases.Any(alias => string.Equals(alias, text, StringComparison.OrdinalIgnoreCase));
+            }
         }
+
+        commandInfo = default!;
+        return false;
     }
 
-    private void InputNavigateHistory()
+    private static bool IsCommandMatch(ConsoleCommandInfo commandInfo, string text)
     {
-        // If console is not visible or there is no history to navigate do nothing
+        if (string.Equals(commandInfo.Name, text, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        string[] aliases = commandInfo.Aliases;
+        for (int aliasIndex = 0; aliasIndex < aliases.Length; aliasIndex++)
+        {
+            if (string.Equals(aliases[aliasIndex], text, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void HandleHistoryNavigation()
+    {
         if (!_mainContainer.Visible || _history.NoHistory())
             return;
 
         if (Input.IsActionJustPressed(InputActions.UIUp))
         {
             string historyText = _history.MoveUpOne();
-
-            _input.Text = historyText;
-
-            // if deferred is not used then something else will override these settings
-            SetCaretColumn(historyText.Length);
+            ApplyHistoryText(historyText);
         }
 
         if (Input.IsActionJustPressed(InputActions.UIDown))
         {
             string historyText = _history.MoveDownOne();
-
-            _input.Text = historyText;
-
-            // if deferred is not used then something else will override these settings
-            SetCaretColumn(historyText.Length);
+            ApplyHistoryText(historyText);
         }
+    }
+
+    private void ApplyHistoryText(string historyText)
+    {
+        _input.Text = historyText;
+        SetCaretColumn(historyText.Length);
     }
 
     private void OnSettingsBtnPressed()
@@ -204,36 +254,20 @@ public partial class GameConsole : Node
 
     private void OnConsoleInputEntered(string text)
     {
-        // case sensitivity and trailing spaces should not factor in here
-        string inputToLowerTrimmed = text.Trim().ToLower();
-        if (string.IsNullOrWhiteSpace(inputToLowerTrimmed))
+        string trimmedInput = text.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedInput))
             return;
 
-        string[] inputArr = inputToLowerTrimmed.Split(' ');
+        _history.Add(trimmedInput);
+        ProcessCommand(trimmedInput);
 
-        // extract command from input
-        string cmd = inputArr[0];
-
-        // do not do anything if cmd is just whitespace
-        if (string.IsNullOrWhiteSpace(cmd))
-            return;
-
-        // keep track of input history
-        _history.Add(inputToLowerTrimmed);
-
-        // process the command
-        ProcessCommand(text);
-
-        // clear the input after the command is executed
         _input.Clear();
-
         CallDeferred(nameof(RefocusInput));
     }
 
-    // Put focus back on the input and move caret to end so user can type immediately
     private void RefocusInput()
     {
-        _input.Edit(); // MUST do this otherwise refocus on LineEdit will NOT work
+        _input.Edit();
         _input.GrabFocus();
         _input.CaretColumn = _input.Text.Length;
     }
@@ -245,7 +279,6 @@ public partial class GameConsole : Node
     }
 }
 
-// Extensions
 public static class ConsoleCommandInfoExtensions
 {
     public static ConsoleCommandInfo WithAliases(this ConsoleCommandInfo cmdInfo, params string[] aliases)
