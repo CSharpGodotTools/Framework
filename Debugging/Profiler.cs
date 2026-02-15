@@ -7,7 +7,7 @@ namespace Framework.Debugging;
 public class Profiler
 {
     // Variables
-    private static Dictionary<string, ProfilerEntry> _entries = [];
+    private static readonly Dictionary<string, ProfilerEntry> _entries = [];
     private const int DefaultAccuracy = 2;
 
     // API
