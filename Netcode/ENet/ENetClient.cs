@@ -20,6 +20,8 @@ public abstract class ENetClient : ENetLow
 
     protected Peer _peer;
     protected long _connected;
+    private long _hasLocalId;
+    private long _localId;
     private static readonly ClientLogAggregator _logAggregator = new();
 
     // Config
@@ -44,6 +46,10 @@ public abstract class ENetClient : ENetLow
     protected virtual uint PeerTimeoutMaximumMs { get; } = 5000;
 
     private readonly ConcurrentQueue<Packet> _incoming = new();
+
+    public uint PeerId => _peer.ID;
+    public bool HasLocalId => Interlocked.Read(ref _hasLocalId) == 1;
+    public uint LocalId => (uint)Interlocked.Read(ref _localId);
 
     /// <summary>
     /// Log messages as the client. Thread safe.
@@ -118,10 +124,13 @@ public abstract class ENetClient : ENetLow
     {
         base.OnDisconnectCleanup(peer);
         Interlocked.Exchange(ref _connected, 0);
+        ResetLocalId();
     }
 
     protected void WorkerThread(string ip, ushort port)
     {
+        ResetLocalId();
+
         Host = new Host();
         Host.Create();
 
@@ -139,6 +148,19 @@ public abstract class ENetClient : ENetLow
         }
         
         NotifyClientStopped();
+    }
+
+    protected bool TrySetLocalId(uint localId)
+    {
+        long previousLocalId = Interlocked.Exchange(ref _localId, (long)localId);
+        long previousHasLocalId = Interlocked.Exchange(ref _hasLocalId, 1);
+        return previousHasLocalId == 0 || previousLocalId != localId;
+    }
+
+    protected void ResetLocalId()
+    {
+        Interlocked.Exchange(ref _localId, 0);
+        Interlocked.Exchange(ref _hasLocalId, 0);
     }
 
     private void ProcessENetCommands()

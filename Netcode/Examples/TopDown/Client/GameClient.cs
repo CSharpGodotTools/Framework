@@ -15,12 +15,6 @@ public partial class GameClient : GodotClient
 
     private readonly Dictionary<uint, Vector2> _remotePositions = [];
     private readonly Dictionary<uint, Vector2> _pendingPositions = [];
-    private uint _localId;
-    private bool _hasLocalId;
-
-    public uint PeerId => _peer.ID;
-    public bool HasLocalId => _hasLocalId;
-    public uint LocalId => _localId;
 
     public GameClient()
     {
@@ -35,8 +29,6 @@ public partial class GameClient : GodotClient
 
     protected override void OnDisconnect(Event netEvent)
     {
-        _hasLocalId = false;
-        _localId = 0;
         _remotePositions.Clear();
         _pendingPositions.Clear();
     }
@@ -48,55 +40,66 @@ public partial class GameClient : GodotClient
 
     private void OnPlayerJoinedLeaved(SPacketPlayerJoinedLeaved packet)
     {
-        uint id = packet.Id;
-
         if (packet.Joined)
         {
-            if (packet.IsLocal && !_hasLocalId)
-            {
-                _localId = id;
-                _hasLocalId = true;
-                LocalPlayerReady?.Invoke(id);
-                FlushPendingPositions();
-                return;
-            }
-
-            if (!_hasLocalId && !packet.IsLocal)
-            {
-                RemotePlayerJoined?.Invoke(id);
-                return;
-            }
-
-            if (id == _localId)
-            {
-                LocalPlayerReady?.Invoke(id);
-                return;
-            }
-
-            RemotePlayerJoined?.Invoke(id);
+            HandlePlayerJoined(packet);
             return;
         }
 
-        if (_hasLocalId && id == _localId)
-            return;
-
-        _remotePositions.Remove(id);
-        RemotePlayerLeft?.Invoke(id);
+        HandlePlayerLeft(packet.Id);
     }
 
     private void OnPlayerPositions(SPacketPlayerPositions packet)
     {
-        if (!_hasLocalId)
+        if (!HasLocalId)
         {
-            _pendingPositions.Clear();
-            foreach (KeyValuePair<uint, Vector2> kvp in packet.Positions)
-            {
-                _pendingPositions[kvp.Key] = kvp.Value;
-            }
+            CachePendingPositions(packet.Positions);
             return;
         }
 
         ApplyRemotePositions(packet.Positions);
+    }
+
+    private void HandlePlayerJoined(SPacketPlayerJoinedLeaved packet)
+    {
+        if (packet.IsLocal)
+        {
+            if (TrySetLocalId(packet.Id))
+            {
+                LocalPlayerReady?.Invoke(LocalId);
+                FlushPendingPositions();
+            }
+
+            return;
+        }
+
+        if (HasLocalId && packet.Id == LocalId)
+        {
+            return;
+        }
+
+        RemotePlayerJoined?.Invoke(packet.Id);
+    }
+
+    private void HandlePlayerLeft(uint id)
+    {
+        if (HasLocalId && id == LocalId)
+        {
+            return;
+        }
+
+        _remotePositions.Remove(id);
+        _pendingPositions.Remove(id);
+        RemotePlayerLeft?.Invoke(id);
+    }
+
+    private void CachePendingPositions(IReadOnlyDictionary<uint, Vector2> positions)
+    {
+        _pendingPositions.Clear();
+        foreach (KeyValuePair<uint, Vector2> kvp in positions)
+        {
+            _pendingPositions[kvp.Key] = kvp.Value;
+        }
     }
 
     private void FlushPendingPositions()
@@ -110,12 +113,15 @@ public partial class GameClient : GodotClient
 
     private void ApplyRemotePositions(IReadOnlyDictionary<uint, Vector2> positions)
     {
+        uint localId = LocalId;
         _remotePositions.Clear();
 
         foreach (KeyValuePair<uint, Vector2> kvp in positions)
         {
-            if (kvp.Key == _localId)
+            if (kvp.Key == localId)
+            {
                 continue;
+            }
 
             _remotePositions[kvp.Key] = kvp.Value;
         }
