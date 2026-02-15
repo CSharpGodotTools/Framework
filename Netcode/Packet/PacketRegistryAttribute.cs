@@ -8,11 +8,17 @@ public sealed class PacketRegistryAttribute : System.Attribute
     /// </summary>
     public System.Type OpcodeType { get; }
 
+    /// <summary>
+    /// Creates a registry marker using <see cref="byte"/> opcodes.
+    /// </summary>
     public PacketRegistryAttribute()
     {
         OpcodeType = typeof(byte);
     }
 
+    /// <summary>
+    /// Creates a registry marker using a custom opcode backing type.
+    /// </summary>
     public PacketRegistryAttribute(System.Type opcodeType)
     {
         System.ArgumentNullException.ThrowIfNull(opcodeType);

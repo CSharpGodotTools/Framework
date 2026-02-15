@@ -34,6 +34,9 @@ public class Net
     public ushort ServerPort { get; private set; }
     public int ServerMaxClients { get; private set; }
 
+    /// <summary>
+    /// Creates a network coordinator that owns the active server and client instances.
+    /// </summary>
     public Net(IGameClientFactory clientFactory, IGameServerFactory serverFactory)
     {
         ArgumentNullException.ThrowIfNull(clientFactory);
@@ -50,6 +53,9 @@ public class Net
         Server = _serverFactory.CreateServer();
     }
 
+    /// <summary>
+    /// Creates and starts a new server instance.
+    /// </summary>
     public void StartServer(ushort port, int maxClients, ENetOptions options)
     {
         if (!CanUseENet())
@@ -71,11 +77,17 @@ public class Net
         Server.Start(port, maxClients, options);
     }
 
+    /// <summary>
+    /// Requests the current server instance to stop.
+    /// </summary>
     public void StopServer()
     {
         Server.Stop();
     }
 
+    /// <summary>
+    /// Creates and connects a new client instance.
+    /// </summary>
     public async Task StartClient(string ip, ushort port)
     {
         if (!CanUseENet())
@@ -95,6 +107,9 @@ public class Net
         await Client.Connect(ip, port, CloneDefaultClientOptions());
     }
 
+    /// <summary>
+    /// Requests the current client instance to stop.
+    /// </summary>
     public void StopClient()
     {
         if (!Client.IsRunning)

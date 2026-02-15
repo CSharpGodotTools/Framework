@@ -27,6 +27,9 @@ public class PacketReader : IDisposable
     private readonly BinaryReader _reader;
     private readonly byte[] _readBuffer;
 
+    /// <summary>
+    /// Creates a packet reader from an ENet packet payload.
+    /// </summary>
     public PacketReader(ENet.Packet packet)
     {
         int packetLength = packet.Length;
@@ -38,23 +41,94 @@ public class PacketReader : IDisposable
         _reader = new BinaryReader(_stream);
     }
 
+    /// <summary>
+    /// Reads a <see cref="byte"/> value.
+    /// </summary>
     public byte ReadByte() => _reader.ReadByte();
+
+    /// <summary>
+    /// Reads an <see cref="sbyte"/> value.
+    /// </summary>
     public sbyte ReadSByte() => _reader.ReadSByte();
+
+    /// <summary>
+    /// Reads a <see cref="char"/> value.
+    /// </summary>
     public char ReadChar() => _reader.ReadChar();
+
+    /// <summary>
+    /// Reads a <see cref="string"/> value.
+    /// </summary>
     public string ReadString() => _reader.ReadString();
+
+    /// <summary>
+    /// Reads a <see cref="bool"/> value.
+    /// </summary>
     public bool ReadBool() => _reader.ReadBoolean();
+
+    /// <summary>
+    /// Reads a <see cref="short"/> value.
+    /// </summary>
     public short ReadShort() => _reader.ReadInt16();
+
+    /// <summary>
+    /// Reads a <see cref="ushort"/> value.
+    /// </summary>
     public ushort ReadUShort() => _reader.ReadUInt16();
+
+    /// <summary>
+    /// Reads an <see cref="int"/> value.
+    /// </summary>
     public int ReadInt() => _reader.ReadInt32();
+
+    /// <summary>
+    /// Reads a <see cref="uint"/> value.
+    /// </summary>
     public uint ReadUInt() => _reader.ReadUInt32();
+
+    /// <summary>
+    /// Reads a <see cref="float"/> value.
+    /// </summary>
     public float ReadFloat() => _reader.ReadSingle();
+
+    /// <summary>
+    /// Reads a <see cref="double"/> value.
+    /// </summary>
     public double ReadDouble() => _reader.ReadDouble();
+
+    /// <summary>
+    /// Reads a <see cref="long"/> value.
+    /// </summary>
     public long ReadLong() => _reader.ReadInt64();
+
+    /// <summary>
+    /// Reads a <see cref="ulong"/> value.
+    /// </summary>
     public ulong ReadULong() => _reader.ReadUInt64();
+
+    /// <summary>
+    /// Reads a <see cref="decimal"/> value.
+    /// </summary>
     public decimal ReadDecimal() => _reader.ReadDecimal();
+
+    /// <summary>
+    /// Reads a fixed number of bytes.
+    /// </summary>
     public byte[] ReadBytes(int count) => _reader.ReadBytes(count);
+
+    /// <summary>
+    /// Reads a length-prefixed byte array.
+    /// </summary>
     public byte[] ReadBytes() => ReadBytes(ReadInt());
+
+    /// <summary>
+    /// Reads a <see cref="Vector2"/> value.
+    /// </summary>
     public Vector2 ReadVector2() => new(ReadFloat(), ReadFloat());
+
+    /// <summary>
+    /// Reads a <see cref="Vector3"/> value.
+    /// </summary>
     public Vector3 ReadVector3() => new(ReadFloat(), ReadFloat(), ReadFloat());
 
     /// <summary>
@@ -255,6 +329,9 @@ public class PacketReader : IDisposable
             && property.GetCustomAttributes(typeof(NetExcludeAttribute), true).Length == 0;
     }
 
+    /// <summary>
+    /// Releases reader resources and suppresses finalization.
+    /// </summary>
     public void Dispose()
     {
         _reader.Dispose();

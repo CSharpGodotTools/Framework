@@ -1,8 +1,5 @@
 namespace Framework.Netcode.Examples.Topdown;
 
-/// <summary>
-/// TopDown-specific net control panel configuration.
-/// </summary>
 public partial class NetControlPanel : NetControlPanelLow<GameClient, GameServer>
 {
     private const bool VerbosePacketLogs = false;

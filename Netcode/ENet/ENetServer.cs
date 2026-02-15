@@ -52,11 +52,17 @@ public abstract class ENetServer : ENetLow
         ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.KickAll, opcode));
     }
 
+    /// <summary>
+    /// Enqueues a server packet for sending on the worker thread.
+    /// </summary>
     protected void EnqueuePacket(ServerPacket packet)
     {
         _outgoing.Enqueue(packet);
     }
 
+    /// <summary>
+    /// Processes server worker queues each network tick.
+    /// </summary>
     protected sealed override void ConcurrentQueues()
     {
         ProcessEnetCommands();
@@ -65,26 +71,41 @@ public abstract class ENetServer : ENetLow
         _logAggregator.Flush(message => Log(message));
     }
 
+    /// <summary>
+    /// Internal connect handler that tracks active peers.
+    /// </summary>
     protected sealed override void OnConnectLow(Event netEvent)
     {
         _peers[netEvent.Peer.ID] = netEvent.Peer;
         _logAggregator.RecordConnect(netEvent.Peer.ID);
     }
 
+    /// <summary>
+    /// Hook invoked when a connected peer disconnects or times out.
+    /// </summary>
     protected virtual void OnPeerDisconnect(Event netEvent)
     {
     }
 
+    /// <summary>
+    /// Internal disconnect handler that removes peer state.
+    /// </summary>
     protected sealed override void OnDisconnectLow(Event netEvent)
     {
         HandlePeerDisconnected(netEvent, _logAggregator.RecordDisconnect);
     }
 
+    /// <summary>
+    /// Internal timeout handler that removes peer state.
+    /// </summary>
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
         HandlePeerDisconnected(netEvent, _logAggregator.RecordTimeout);
     }
 
+    /// <summary>
+    /// Internal receive handler that validates packet size and enqueues payloads.
+    /// </summary>
     protected sealed override void OnReceiveLow(Event netEvent)
     {
         Packet packet = netEvent.Packet;
@@ -98,6 +119,9 @@ public abstract class ENetServer : ENetLow
         _incoming.Enqueue((packet, netEvent.Peer));
     }
 
+    /// <summary>
+    /// Runs the ENet server worker loop for the configured listen port.
+    /// </summary>
     protected void WorkerThread(ushort port, int maxClients)
     {
         Host host = TryCreateServerHost(port, maxClients);
@@ -123,6 +147,9 @@ public abstract class ENetServer : ENetLow
         }
     }
 
+    /// <summary>
+    /// Clears server peer state and executes shared disconnect cleanup.
+    /// </summary>
     protected sealed override void OnDisconnectCleanup(Peer peer)
     {
         base.OnDisconnectCleanup(peer);
@@ -399,6 +426,9 @@ public abstract class ENetServer : ENetLow
         private uint _lastDisconnectPeerId;
         private uint _lastTimeoutPeerId;
 
+        /// <summary>
+        /// Records a connect lifecycle event.
+        /// </summary>
         public void RecordConnect(uint peerId)
         {
             _connectedCount++;
@@ -406,6 +436,9 @@ public abstract class ENetServer : ENetLow
             MarkEvent(ref _lastConnectTicks);
         }
 
+        /// <summary>
+        /// Records a disconnect lifecycle event.
+        /// </summary>
         public void RecordDisconnect(uint peerId)
         {
             _disconnectedCount++;
@@ -413,6 +446,9 @@ public abstract class ENetServer : ENetLow
             MarkEvent(ref _lastDisconnectTicks);
         }
 
+        /// <summary>
+        /// Records a timeout lifecycle event.
+        /// </summary>
         public void RecordTimeout(uint peerId)
         {
             _timeoutCount++;
@@ -420,6 +456,9 @@ public abstract class ENetServer : ENetLow
             MarkEvent(ref _lastTimeoutTicks);
         }
 
+        /// <summary>
+        /// Emits a coalesced lifecycle log report when burst thresholds are reached.
+        /// </summary>
         public void Flush(Action<string> log)
         {
             if (_connectedCount == 0 && _disconnectedCount == 0 && _timeoutCount == 0)

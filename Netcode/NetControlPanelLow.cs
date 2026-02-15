@@ -240,6 +240,9 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
 
     private record ClientFactory(Func<GodotClient> Creator) : IGameClientFactory
     {
+        /// <summary>
+        /// Creates a game client instance.
+        /// </summary>
         public GodotClient CreateClient()
         {
             return Creator();
@@ -248,6 +251,9 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
 
     private record ServerFactory(Func<GodotServer> Creator) : IGameServerFactory
     {
+        /// <summary>
+        /// Creates a game server instance.
+        /// </summary>
         public GodotServer CreateServer()
         {
             return Creator();

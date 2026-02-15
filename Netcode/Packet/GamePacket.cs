@@ -17,6 +17,9 @@ public abstract class GamePacket
     private long _size;
     private byte[] _data;
 
+    /// <summary>
+    /// Serializes opcode and payload into an ENet-compatible byte buffer.
+    /// </summary>
     public void Write()
     {
         using PacketWriter writer = new();
@@ -27,11 +30,17 @@ public abstract class GamePacket
         _size = writer.Stream.Length;
     }
 
+    /// <summary>
+    /// Sets a single target peer for this packet.
+    /// </summary>
     public void SetPeer(Peer peer)
     {
         Peers = [peer];
     }
 
+    /// <summary>
+    /// Sets one or more target peers for this packet.
+    /// </summary>
     public void SetPeers(Peer[] peers)
     {
         ArgumentNullException.ThrowIfNull(peers);
@@ -39,11 +48,17 @@ public abstract class GamePacket
         Peers = [.. peers];
     }
 
+    /// <summary>
+    /// Gets the size of the most recently serialized packet payload.
+    /// </summary>
     public long GetSize()
     {
         return _size;
     }
 
+    /// <summary>
+    /// Returns the opcode associated with this packet type.
+    /// </summary>
     public abstract byte GetOpcode();
 
     /// <summary>
@@ -64,6 +79,9 @@ public abstract class GamePacket
         // Implemented in generated packet partials.
     }
 
+    /// <summary>
+    /// Creates an ENet packet from the serialized payload.
+    /// </summary>
     protected Packet CreateENetPacket()
     {
         if (_data == null)

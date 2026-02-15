@@ -19,14 +19,27 @@ public abstract class ENetLow
 
     public bool IsRunning => Interlocked.Read(ref _running) == 1;
 
+    /// <summary>
+    /// Logs a message with transport-specific context.
+    /// </summary>
     public abstract void Log(object message, BBColor color);
+
+    /// <summary>
+    /// Requests shutdown for the transport implementation.
+    /// </summary>
     public abstract void Stop();
 
+    /// <summary>
+    /// Performs shared cleanup after disconnect/timeout handling.
+    /// </summary>
     protected virtual void OnDisconnectCleanup(Peer peer)
     {
         CTS?.Cancel();
     }
 
+    /// <summary>
+    /// Stores packet types that should be excluded from verbose logging.
+    /// </summary>
     protected void InitIgnoredPackets(Type[] ignoredPackets)
     {
         if (ignoredPackets == null || ignoredPackets.Length == 0)
@@ -38,6 +51,9 @@ public abstract class ENetLow
         IgnoredPackets = [.. ignoredPackets];
     }
 
+    /// <summary>
+    /// Runs the ENet worker loop and dispatches network events.
+    /// </summary>
     protected void WorkerLoop()
     {
         while (!CTS.IsCancellationRequested)
@@ -108,10 +124,29 @@ public abstract class ENetLow
         }
     }
 
+    /// <summary>
+    /// Processes thread-safe queues owned by the concrete transport.
+    /// </summary>
     protected abstract void ConcurrentQueues();
+
+    /// <summary>
+    /// Handles a low-level ENet connect event.
+    /// </summary>
     protected abstract void OnConnectLow(Event netEvent);
+
+    /// <summary>
+    /// Handles a low-level ENet disconnect event.
+    /// </summary>
     protected abstract void OnDisconnectLow(Event netEvent);
+
+    /// <summary>
+    /// Handles a low-level ENet timeout event.
+    /// </summary>
     protected abstract void OnTimeoutLow(Event netEvent);
+
+    /// <summary>
+    /// Handles a low-level ENet packet receive event.
+    /// </summary>
     protected abstract void OnReceiveLow(Event netEvent);
 
     /// <summary>

@@ -12,11 +12,17 @@ public abstract class ServerPacket : GamePacket
     private SendType _sendType;
     private readonly Type _packetType;
 
+    /// <summary>
+    /// Creates a server packet and caches its runtime type for opcode lookup.
+    /// </summary>
     public ServerPacket()
     {
         _packetType = GetType();
     }
 
+    /// <summary>
+    /// Sends this packet to the configured target peer.
+    /// </summary>
     public void Send()
     {
         if (Peers == null || Peers.Length == 0)
@@ -28,6 +34,9 @@ public abstract class ServerPacket : GamePacket
         Peers[0].Send(ChannelId, ref enetPacket);
     }
 
+    /// <summary>
+    /// Broadcasts this packet through the host, optionally excluding peers.
+    /// </summary>
     public void Broadcast(Host host)
     {
         ArgumentNullException.ThrowIfNull(host);
@@ -49,16 +58,25 @@ public abstract class ServerPacket : GamePacket
         }
     }
 
+    /// <summary>
+    /// Sets the delivery mode used by the server worker when sending this packet.
+    /// </summary>
     public void SetSendType(SendType sendType)
     {
         _sendType = sendType;
     }
 
+    /// <summary>
+    /// Gets the current delivery mode for this packet.
+    /// </summary>
     public SendType GetSendType()
     {
         return _sendType;
     }
 
+    /// <summary>
+    /// Returns the registry opcode for this server packet type.
+    /// </summary>
     public override byte GetOpcode()
     {
         return PacketRegistry.ServerPacketInfo[_packetType].Opcode;

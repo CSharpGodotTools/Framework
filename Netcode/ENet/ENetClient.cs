@@ -56,6 +56,9 @@ public abstract class ENetClient : ENetLow
         GameFramework.Logger.Log($"{timestampPrefix}[Client] {message}", color);
     }
 
+    /// <summary>
+    /// Processes client worker queues each network tick.
+    /// </summary>
     protected sealed override void ConcurrentQueues()
     {
         ProcessENetCommands();
@@ -64,18 +67,30 @@ public abstract class ENetClient : ENetLow
         _logAggregator.Flush(force: false, message => Log(message));
     }
 
+    /// <summary>
+    /// Hook invoked after ENet reports a successful connection.
+    /// </summary>
     protected virtual void OnConnect(Event netEvent)
     {
     }
 
+    /// <summary>
+    /// Hook invoked after ENet reports a disconnect.
+    /// </summary>
     protected virtual void OnDisconnect(Event netEvent)
     {
     }
 
+    /// <summary>
+    /// Hook invoked after ENet reports a timeout.
+    /// </summary>
     protected virtual void OnTimeout(Event netEvent)
     {
     }
 
+    /// <summary>
+    /// Internal connect handler that updates state and dispatches lifecycle callbacks.
+    /// </summary>
     protected sealed override void OnConnectLow(Event netEvent)
     {
         Interlocked.Exchange(ref _connected, 1);
@@ -84,6 +99,9 @@ public abstract class ENetClient : ENetLow
         TryInvoke(() => OnConnect(netEvent));
     }
 
+    /// <summary>
+    /// Internal disconnect handler that updates state and dispatches lifecycle callbacks.
+    /// </summary>
     protected sealed override void OnDisconnectLow(Event netEvent)
     {
         DisconnectOpcode opcode = (DisconnectOpcode)netEvent.Data;
@@ -94,6 +112,9 @@ public abstract class ENetClient : ENetLow
         TryInvoke(() => OnDisconnect(netEvent));
     }
 
+    /// <summary>
+    /// Internal timeout handler that updates state and dispatches lifecycle callbacks.
+    /// </summary>
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
         QueueDisconnectedCommand(DisconnectOpcode.Timeout);
@@ -104,6 +125,9 @@ public abstract class ENetClient : ENetLow
         TryInvoke(() => OnTimeout(netEvent));
     }
 
+    /// <summary>
+    /// Internal receive handler that validates packet size and enqueues payloads.
+    /// </summary>
     protected sealed override void OnReceiveLow(Event netEvent)
     {
         Packet packet = netEvent.Packet;
@@ -118,12 +142,18 @@ public abstract class ENetClient : ENetLow
         _incoming.Enqueue(packet);
     }
 
+    /// <summary>
+    /// Clears client connection state and executes shared disconnect cleanup.
+    /// </summary>
     protected sealed override void OnDisconnectCleanup(Peer peer)
     {
         base.OnDisconnectCleanup(peer);
         Interlocked.Exchange(ref _connected, 0);
     }
 
+    /// <summary>
+    /// Runs the ENet client worker loop for a single connection attempt.
+    /// </summary>
     protected void WorkerThread(string ip, ushort port)
     {
         Interlocked.Exchange(ref _running, 1);
@@ -285,6 +315,9 @@ public abstract class ENetClient : ENetLow
         return address;
     }
 
+    /// <summary>
+    /// Called when a client worker is about to start.
+    /// </summary>
     protected static void NotifyClientStarting()
     {
         // Intentionally no-op to avoid noisy client lifecycle logs.
@@ -326,6 +359,9 @@ public abstract class ENetClient : ENetLow
         private long _lastDisconnectPeerId;
         private long _lastTimeoutPeerId;
 
+        /// <summary>
+        /// Records a connect lifecycle event.
+        /// </summary>
         public void RecordConnect(uint peerId)
         {
             Interlocked.Increment(ref _connectedCount);
@@ -333,6 +369,9 @@ public abstract class ENetClient : ENetLow
             MarkEvent(ref _lastConnectTicks);
         }
 
+        /// <summary>
+        /// Records a disconnect lifecycle event.
+        /// </summary>
         public void RecordDisconnect(uint peerId)
         {
             Interlocked.Increment(ref _disconnectedCount);
@@ -340,6 +379,9 @@ public abstract class ENetClient : ENetLow
             MarkEvent(ref _lastDisconnectTicks);
         }
 
+        /// <summary>
+        /// Records a timeout lifecycle event.
+        /// </summary>
         public void RecordTimeout(uint peerId)
         {
             Interlocked.Increment(ref _timeoutCount);
@@ -347,6 +389,9 @@ public abstract class ENetClient : ENetLow
             MarkEvent(ref _lastTimeoutTicks);
         }
 
+        /// <summary>
+        /// Emits a coalesced lifecycle log report when burst thresholds are reached.
+        /// </summary>
         public void Flush(bool force, Action<string> log)
         {
             int connectedSnapshot = Volatile.Read(ref _connectedCount);

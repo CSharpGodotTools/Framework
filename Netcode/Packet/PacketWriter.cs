@@ -23,6 +23,9 @@ public class PacketWriter : IDisposable
 
     private readonly BinaryWriter _writer;
 
+    /// <summary>
+    /// Creates a packet writer backed by an in-memory stream.
+    /// </summary>
     public PacketWriter()
     {
         _writer = new BinaryWriter(Stream);
@@ -225,6 +228,9 @@ public class PacketWriter : IDisposable
             && property.GetCustomAttributes(typeof(NetExcludeAttribute), true).Length == 0;
     }
 
+    /// <summary>
+    /// Releases writer resources and suppresses finalization.
+    /// </summary>
     public void Dispose()
     {
         _writer.Dispose();
