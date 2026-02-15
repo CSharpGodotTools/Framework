@@ -21,6 +21,8 @@ public partial class FocusOutlineManager(Node owner) : Component(owner)
     // Godot Overrides
     protected override void Ready()
     {
+        SetPausable(false);
+
         _outline = _owner.GetNode<Control>("%CornerDashOutline");
         _outline.Hide();
         _viewport = _owner.GetViewport();

@@ -1826,6 +1826,11 @@
             Base class for lightweight components attached to a node.
             </summary>
         </member>
+        <member name="P:GodotUtils.Component.IsPausable">
+            <summary>
+            Gets whether this component is blocked while the tree is paused.
+            </summary>
+        </member>
         <member name="M:GodotUtils.Component.#ctor(Godot.Node)">
             <summary>
             Creates a component attached to the provided owner node.
@@ -1869,6 +1874,11 @@
         <member name="M:GodotUtils.Component.SetActive(System.Boolean)">
             <summary>
             Enables or disables all processing callbacks for this component.
+            </summary>
+        </member>
+        <member name="M:GodotUtils.Component.SetPausable(System.Boolean)">
+            <summary>
+            Sets whether this component is blocked while the tree is paused.
             </summary>
         </member>
         <member name="M:GodotUtils.Component.SetProcess(System.Boolean)">
@@ -1924,36 +1934,6 @@
         <member name="M:GodotUtils.ComponentManager.#ctor(Godot.Node)">
             <summary>
             Creates a manager tied to the provided node.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.ComponentManager.EnterTree">
-            <summary>
-            Disables processing callbacks until components register.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.ComponentManager.Ready">
-            <summary>
-            Marks this instance as the active manager.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.ComponentManager.Process(System.Double)">
-            <summary>
-            Dispatches per-frame processing to registered components.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.ComponentManager.PhysicsProcess(System.Double)">
-            <summary>
-            Dispatches physics processing to registered components.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.ComponentManager.Input(Godot.InputEvent)">
-            <summary>
-            Dispatches input events to registered components.
-            </summary>
-        </member>
-        <member name="M:GodotUtils.ComponentManager.UnhandledInput(Godot.InputEvent)">
-            <summary>
-            Dispatches unhandled input events to registered components.
             </summary>
         </member>
         <member name="M:GodotUtils.ComponentManager.RegisterProcess(GodotUtils.Component)">
