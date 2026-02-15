@@ -9,7 +9,7 @@ internal sealed class RemotePlayers
 
     private readonly World _world;
     private readonly Dictionary<uint, ColorRect> _players = [];
-    private readonly Dictionary<uint, Vector2> _targets = [];
+    private readonly Dictionary<uint, Vector2> _targetPositions = [];
 
     public RemotePlayers(World world)
     {
@@ -23,66 +23,69 @@ internal sealed class RemotePlayers
 
     public void Remove(uint id)
     {
-        if (_players.Remove(id, out ColorRect rect))
+        if (_players.Remove(id, out ColorRect playerNode))
         {
-            rect.QueueFree();
+            playerNode.QueueFree();
         }
 
-        _targets.Remove(id);
+        _targetPositions.Remove(id);
     }
 
     public void ClearAll()
     {
-        foreach (ColorRect rect in _players.Values)
+        foreach (ColorRect playerNode in _players.Values)
         {
-            rect.QueueFree();
+            playerNode.QueueFree();
         }
 
         _players.Clear();
-        _targets.Clear();
+        _targetPositions.Clear();
     }
 
     public void UpdateTargets(IReadOnlyDictionary<uint, Vector2> positions)
     {
-        foreach (KeyValuePair<uint, Vector2> kvp in positions)
+        foreach (KeyValuePair<uint, Vector2> positionEntry in positions)
         {
-            ColorRect rect = EnsurePlayerNode(kvp.Key);
-            if (!_targets.ContainsKey(kvp.Key))
+            ColorRect playerNode = EnsurePlayerNode(positionEntry.Key);
+            if (!_targetPositions.ContainsKey(positionEntry.Key))
             {
-                rect.Position = kvp.Value;
+                playerNode.Position = positionEntry.Value;
             }
 
-            _targets[kvp.Key] = kvp.Value;
+            _targetPositions[positionEntry.Key] = positionEntry.Value;
         }
     }
 
     public void Tick(float deltaSeconds)
     {
-        if (_targets.Count > 0)
+        if (_targetPositions.Count == 0)
         {
-            float interpolation = 1f - Mathf.Exp(-RemoteLerpSpeed * deltaSeconds);
+            return;
+        }
 
-            foreach (KeyValuePair<uint, Vector2> kvp in _targets)
+        float interpolation = 1f - Mathf.Exp(-RemoteLerpSpeed * deltaSeconds);
+
+        foreach (KeyValuePair<uint, Vector2> positionEntry in _targetPositions)
+        {
+            if (_players.TryGetValue(positionEntry.Key, out ColorRect playerNode))
             {
-                if (_players.TryGetValue(kvp.Key, out ColorRect rect))
-                {
-                    rect.Position = rect.Position.Lerp(kvp.Value, interpolation);
-                }
+                playerNode.Position = playerNode.Position.Lerp(positionEntry.Value, interpolation);
             }
         }
     }
 
     private ColorRect EnsurePlayerNode(uint id)
     {
-        if (!_players.TryGetValue(id, out ColorRect rect))
+        if (_players.TryGetValue(id, out ColorRect existingNode))
         {
-            rect = World.CreatePlayerRect(new Color(1f, 0.55f, 0.2f));
-            rect.Name = $"Player_{id}";
-            rect.Position = _world.GetScreenCenter();
-            _players[id] = rect;
-            _world.AddChild(rect);
+            return existingNode;
         }
 
-        return rect;
+        ColorRect playerNode = World.CreatePlayerRect(new Color(1f, 0.55f, 0.2f));
+        playerNode.Name = $"Player_{id}";
+        playerNode.Position = _world.GetScreenCenter();
+        _players[id] = playerNode;
+        _world.AddChild(playerNode);
+        return playerNode;
     }
 }

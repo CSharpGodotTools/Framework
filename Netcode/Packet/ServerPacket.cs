@@ -5,39 +5,50 @@ using Framework.Netcode.Client;
 namespace Framework.Netcode;
 
 /// <summary>
-/// A packet sent from the server to other client(s)
+/// Packet sent from a server to one or more clients.
 /// </summary>
 public abstract class ServerPacket : GamePacket
 {
     private SendType _sendType;
-    private readonly Type _type;
+    private readonly Type _packetType;
 
     public ServerPacket()
     {
-        _type = GetType();
+        _packetType = GetType();
     }
 
     public void Send()
     {
+        if (Peers == null || Peers.Length == 0)
+        {
+            throw new InvalidOperationException($"{GetType().Name} cannot send without a target peer.");
+        }
+
         Packet enetPacket = CreateENetPacket();
         Peers[0].Send(ChannelId, ref enetPacket);
     }
 
     public void Broadcast(Host host)
     {
-        Packet enetPacket = CreateENetPacket();
+        if (host == null)
+        {
+            throw new ArgumentNullException(nameof(host));
+        }
 
-        if (Peers.Length == 0)
+        Packet enetPacket = CreateENetPacket();
+        Peer[] peers = Peers ?? [];
+
+        if (peers.Length == 0)
         {
             host.Broadcast(ChannelId, ref enetPacket);
         }
-        else if (Peers.Length == 1)
+        else if (peers.Length == 1)
         {
-            host.Broadcast(ChannelId, ref enetPacket, Peers[0]);
+            host.Broadcast(ChannelId, ref enetPacket, peers[0]);
         }
         else
         {
-            host.Broadcast(ChannelId, ref enetPacket, Peers);
+            host.Broadcast(ChannelId, ref enetPacket, peers);
         }
     }
 
@@ -53,10 +64,13 @@ public abstract class ServerPacket : GamePacket
 
     public override byte GetOpcode()
     {
-        return PacketRegistry.ServerPacketInfo[_type].Opcode;
+        return PacketRegistry.ServerPacketInfo[_packetType].Opcode;
     }
 }
 
+/// <summary>
+/// Delivery mode selected when enqueuing server packets.
+/// </summary>
 public enum SendType
 {
     Peer,

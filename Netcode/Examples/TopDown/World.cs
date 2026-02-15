@@ -1,4 +1,3 @@
-using Framework.Netcode;
 using Framework.Netcode.Client;
 using Godot;
 using System.Collections.Generic;
@@ -37,7 +36,7 @@ public partial class World : Node2D
 
         if (_stressTest != null)
         {
-            _stressTest.Stop();
+            _stressTest.Dispose();
         }
 
         DetachClient();
@@ -52,6 +51,28 @@ public partial class World : Node2D
             _localPlayer.Tick(deltaSeconds);
             _remotePlayers.Tick(deltaSeconds);
             _stressTest.Tick(deltaSeconds);
+        }
+    }
+
+    public static ColorRect CreatePlayerRect(Color color)
+    {
+        return new ColorRect
+        {
+            Color = color,
+            Size = new Vector2(PlayerSize, PlayerSize)
+        };
+    }
+
+    public Vector2 GetScreenCenter()
+    {
+        return GetViewportRect().Size * 0.5f;
+    }
+
+    internal void ClearRemotePlayers()
+    {
+        if (_remotePlayers != null)
+        {
+            _remotePlayers.ClearAll();
         }
     }
 
@@ -87,40 +108,6 @@ public partial class World : Node2D
         RefreshProcessingState();
     }
 
-    private void OnClientConnected()
-    {
-        _localPlayer.EnsureLocalPlayer();
-        _localPlayer.ResetAtCenter();
-        RefreshProcessingState();
-    }
-
-    private void OnClientDisconnected(DisconnectOpcode _)
-    {
-        ClearPlayers();
-        RefreshProcessingState();
-    }
-
-    private void OnLocalPlayerReady(uint _)
-    {
-        _localPlayer.EnsureLocalPlayer();
-        RefreshProcessingState();
-    }
-
-    private void OnRemotePlayerJoined(uint id)
-    {
-        _remotePlayers.EnsureRemote(id);
-    }
-
-    private void OnRemotePlayerLeft(uint id)
-    {
-        _remotePlayers.Remove(id);
-    }
-
-    private void OnRemotePositionsUpdated(IReadOnlyDictionary<uint, Vector2> positions)
-    {
-        _remotePlayers.UpdateTargets(positions);
-    }
-
     private void DetachClient()
     {
         if (_client != null)
@@ -143,12 +130,38 @@ public partial class World : Node2D
         RefreshProcessingState();
     }
 
-    internal void ClearRemotePlayers()
+    private void OnClientConnected()
     {
-        if (_remotePlayers != null)
-        {
-            _remotePlayers.ClearAll();
-        }
+        _localPlayer.EnsureLocalPlayer();
+        _localPlayer.ResetAtCenter();
+        RefreshProcessingState();
+    }
+
+    private void OnClientDisconnected(DisconnectOpcode opcode)
+    {
+        ClearPlayers();
+        RefreshProcessingState();
+    }
+
+    private void OnLocalPlayerReady(uint localId)
+    {
+        _localPlayer.EnsureLocalPlayer();
+        RefreshProcessingState();
+    }
+
+    private void OnRemotePlayerJoined(uint id)
+    {
+        _remotePlayers.EnsureRemote(id);
+    }
+
+    private void OnRemotePlayerLeft(uint id)
+    {
+        _remotePlayers.Remove(id);
+    }
+
+    private void OnRemotePositionsUpdated(IReadOnlyDictionary<uint, Vector2> positions)
+    {
+        _remotePlayers.UpdateTargets(positions);
     }
 
     private void ClearPlayers()
@@ -164,20 +177,6 @@ public partial class World : Node2D
         }
     }
 
-    public static ColorRect CreatePlayerRect(Color color)
-    {
-        return new ColorRect
-        {
-            Color = color,
-            Size = new Vector2(PlayerSize, PlayerSize)
-        };
-    }
-
-    public Vector2 GetScreenCenter()
-    {
-        return GetViewportRect().Size * 0.5f;
-    }
-
     private void RefreshProcessingState()
     {
         bool hasReadyNetworkPlayer = _client != null
@@ -186,7 +185,7 @@ public partial class World : Node2D
             && _localPlayer != null
             && _localPlayer.HasLocalPlayer;
 
-        bool shouldProcess = (_stressTest != null && _stressTest.IsRunning) || hasReadyNetworkPlayer;
-        SetProcess(shouldProcess);
+        bool stressTestRunning = _stressTest != null && _stressTest.IsRunning;
+        SetProcess(stressTestRunning || hasReadyNetworkPlayer);
     }
 }

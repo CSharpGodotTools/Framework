@@ -1,26 +1,24 @@
 using ENet;
+using System;
 using System.Collections.Generic;
 using System.Threading;
-using System;
 
 namespace Framework.Netcode;
 
 /// <summary>
-/// ENetServer and ENetClient both extend from this class.
+/// Shared ENet worker-thread lifecycle used by client and server implementations.
 /// </summary>
 public abstract class ENetLow
 {
-    // Properties
     protected Host Host { get; set; }
     protected CancellationTokenSource CTS { get; set; }
     protected ENetOptions Options { get; set; }
     protected HashSet<Type> IgnoredPackets { get; private set; } = [];
-    
-    // Fields
-    protected long _running; // Interlocked.Read requires this to be a field
 
-    // Methods
+    protected long _running;
+
     public bool IsRunning => Interlocked.Read(ref _running) == 1;
+
     public abstract void Log(object message, BBColor color);
     public abstract void Stop();
 
@@ -44,45 +42,70 @@ public abstract class ENetLow
     {
         while (!CTS.IsCancellationRequested)
         {
-            bool polled = false;
-
             ConcurrentQueues();
-
-            while (!polled)
-            {
-                if (Host.CheckEvents(out Event netEvent) <= 0)
-                {
-                    if (Host.Service(15, out netEvent) <= 0)
-                    {
-                        break;
-                    }
-
-                    polled = true;
-                }
-
-                switch (netEvent.Type)
-                {
-                    case EventType.None:
-                        // do nothing
-                        break;
-                    case EventType.Connect:
-                        OnConnectLow(netEvent);
-                        break;
-                    case EventType.Disconnect:
-                        OnDisconnectLow(netEvent);
-                        break;
-                    case EventType.Timeout:
-                        OnTimeoutLow(netEvent);
-                        break;
-                    case EventType.Receive:
-                        OnReceiveLow(netEvent);
-                        break;
-                }
-            }
+            PumpNetworkEvents();
         }
 
         Host.Flush();
         Interlocked.Exchange(ref _running, 0);
+    }
+
+    private void PumpNetworkEvents()
+    {
+        bool hasServiced = false;
+
+        while (!hasServiced)
+        {
+            if (!TryGetNextEvent(out Event netEvent, out hasServiced))
+            {
+                break;
+            }
+
+            DispatchEvent(netEvent);
+        }
+    }
+
+    private bool TryGetNextEvent(out Event netEvent, out bool hasServiced)
+    {
+        if (Host.CheckEvents(out netEvent) > 0)
+        {
+            hasServiced = false;
+            return true;
+        }
+
+        if (Host.Service(15, out netEvent) > 0)
+        {
+            hasServiced = true;
+            return true;
+        }
+
+        hasServiced = false;
+        return false;
+    }
+
+    private void DispatchEvent(Event netEvent)
+    {
+        switch (netEvent.Type)
+        {
+            case EventType.None:
+                break;
+
+            case EventType.Connect:
+                OnConnectLow(netEvent);
+                break;
+
+            case EventType.Disconnect:
+                OnDisconnectLow(netEvent);
+                break;
+
+            case EventType.Timeout:
+                OnTimeoutLow(netEvent);
+                break;
+
+            case EventType.Receive:
+                OnReceiveLow(netEvent);
+                break;
+        }
     }
 
     protected abstract void ConcurrentQueues();
@@ -98,6 +121,11 @@ public abstract class ENetLow
     /// </summary>
     protected string FormatByteSize(long bytes)
     {
-        return Options.PrintPacketByteSize ? $"({bytes} byte{(bytes == 1 ? "" : "s")}) " : "";
+        if (!Options.PrintPacketByteSize)
+        {
+            return string.Empty;
+        }
+
+        return $"({bytes} byte{(bytes == 1 ? "" : "s")}) ";
     }
 }

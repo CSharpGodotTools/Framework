@@ -30,10 +30,11 @@ public partial class GameServer : GodotServer
         if (packet.Joined)
         {
             AddPlayer(peer);
-            return;
         }
-
-        RemovePlayer(peer.ID);
+        else
+        {
+            RemovePlayer(peer.ID);
+        }
     }
 
     private void OnPlayerPosition(CPacketPlayerPosition packet, Peer peer)
@@ -44,7 +45,7 @@ public partial class GameServer : GodotServer
         }
 
         _positions[peer.ID] = packet.Position;
-        BroadcastPositions(excludePeer: peer);
+        BroadcastPositions(force: false, excludedPeer: peer);
     }
 
     private void AddPlayer(Peer peer)
@@ -54,27 +55,70 @@ public partial class GameServer : GodotServer
             return;
         }
 
-        Send(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = true }, peer);
-        Broadcast(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = false }, peer);
+        Send(new SPacketPlayerJoinedLeaved
+        {
+            Id = peer.ID,
+            Joined = true,
+            IsLocal = true
+        }, peer);
+
+        Broadcast(new SPacketPlayerJoinedLeaved
+        {
+            Id = peer.ID,
+            Joined = true,
+            IsLocal = false
+        }, peer);
+
         SendExistingPlayersTo(peer);
         SendPositionsSnapshotTo(peer);
     }
 
-    private void RemovePlayer(uint id)
+    private void RemovePlayer(uint playerId)
     {
-        if (!_players.Remove(id))
+        if (!_players.Remove(playerId))
         {
             return;
         }
 
-        _positions.Remove(id);
-        Broadcast(new SPacketPlayerJoinedLeaved { Id = id, Joined = false });
+        _positions.Remove(playerId);
+        Broadcast(new SPacketPlayerJoinedLeaved { Id = playerId, Joined = false });
         BroadcastPositions(force: true);
     }
 
-    private void BroadcastPositions(bool force = false, Peer? excludePeer = null)
+    private void SendExistingPlayersTo(Peer peer)
     {
-        if (!CanBroadcastPositions(PositionBroadcastIntervalMs, force))
+        foreach (uint playerId in _players)
+        {
+            if (playerId != peer.ID)
+            {
+                Send(new SPacketPlayerJoinedLeaved
+                {
+                    Id = playerId,
+                    Joined = true,
+                    IsLocal = false
+                }, peer);
+            }
+        }
+    }
+
+    private void SendPositionsSnapshotTo(Peer peer)
+    {
+        Dictionary<uint, Vector2> snapshot = [];
+
+        foreach (KeyValuePair<uint, Vector2> positionEntry in _positions)
+        {
+            if (positionEntry.Key != peer.ID)
+            {
+                snapshot[positionEntry.Key] = positionEntry.Value;
+            }
+        }
+
+        Send(new SPacketPlayerPositions { Positions = snapshot }, peer);
+    }
+
+    private void BroadcastPositions(bool force = false, Peer? excludedPeer = null)
+    {
+        if (!CanBroadcastPositions(force))
         {
             return;
         }
@@ -84,9 +128,9 @@ public partial class GameServer : GodotServer
             Positions = new Dictionary<uint, Vector2>(_positions)
         };
 
-        if (excludePeer is { } excludedPeer)
+        if (excludedPeer.HasValue)
         {
-            Broadcast(packet, excludedPeer);
+            Broadcast(packet, excludedPeer.Value);
         }
         else
         {
@@ -94,13 +138,8 @@ public partial class GameServer : GodotServer
         }
     }
 
-    private bool CanBroadcastPositions(int intervalMs, bool force)
+    private bool CanBroadcastPositions(bool force)
     {
-        if (intervalMs <= 0)
-        {
-            return true;
-        }
-
         long now = Stopwatch.GetTimestamp();
         if (force)
         {
@@ -114,42 +153,13 @@ public partial class GameServer : GodotServer
             return true;
         }
 
-        long intervalTicks = (long)(intervalMs * (double)Stopwatch.Frequency / 1000.0);
-        if (now - _lastPositionBroadcastTicks < intervalTicks)
+        long broadcastIntervalTicks = (long)(PositionBroadcastIntervalMs * (double)Stopwatch.Frequency / 1000.0);
+        if (now - _lastPositionBroadcastTicks < broadcastIntervalTicks)
         {
             return false;
         }
 
         _lastPositionBroadcastTicks = now;
         return true;
-    }
-
-    private void SendExistingPlayersTo(Peer peer)
-    {
-        foreach (uint id in _players)
-        {
-            if (id == peer.ID)
-            {
-                continue;
-            }
-
-            Send(new SPacketPlayerJoinedLeaved { Id = id, Joined = true, IsLocal = false }, peer);
-        }
-    }
-
-    private void SendPositionsSnapshotTo(Peer peer)
-    {
-        Dictionary<uint, Vector2> snapshot = [];
-        foreach (KeyValuePair<uint, Vector2> kvp in _positions)
-        {
-            if (kvp.Key == peer.ID)
-            {
-                continue;
-            }
-
-            snapshot[kvp.Key] = kvp.Value;
-        }
-
-        Send(new SPacketPlayerPositions { Positions = snapshot }, peer);
     }
 }

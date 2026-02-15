@@ -74,6 +74,7 @@ public partial class World
 
             _started = true;
             _paused = false;
+            _serverRestartPending = false;
             _spawnAccumulator = 0f;
             ApplySettingsFromUi();
             ApplyRunningServerSettings();
@@ -147,7 +148,15 @@ public partial class World
             StopBots();
             _started = false;
             _paused = false;
+            _serverRestartPending = false;
             _world.ClearRemotePlayers();
+        }
+
+        public void Dispose()
+        {
+            Stop();
+            _startButton.Pressed -= OnStartPressed;
+            _stopButton.Pressed -= OnStopPressed;
         }
 
         private void SpawnBot()
@@ -155,25 +164,23 @@ public partial class World
             if (_bots.Count >= _targetClients)
                 return;
 
-            BotClient bot = new(_world, _world.GetScreenCenter(), _circleRadius, _angularSpeed, _sendIntervalSeconds, _port);
+            BotClient bot = new(_world.GetScreenCenter(), _circleRadius, _angularSpeed, _sendIntervalSeconds, _port);
             _bots.Add(bot);
         }
 
         private void EnsureServerRunning()
         {
-            Net net = _world._netControlPanel?.Net;
-            if (net?.Server == null || net.Server.IsRunning)
-                return;
-
-            StartServerWithSettings();
+            if (TryGetNet(out Net net) && net.Server != null && !net.Server.IsRunning)
+            {
+                StartServerWithSettings();
+            }
         }
 
         private void ApplyRunningServerSettings()
         {
             if (IsServerRunning())
             {
-                Net net = _world._netControlPanel?.Net;
-                if (net != null)
+                if (TryGetNet(out Net net))
                 {
                     _port = net.ServerPort;
                     _maxClients = net.ServerMaxClients;
@@ -186,38 +193,39 @@ public partial class World
 
         private void EnsureLocalClientRunning()
         {
-            Net net = _world._netControlPanel?.Net;
-            if (net?.Client == null || net.Client.IsRunning)
-                return;
-
-            Task startTask = net.StartClient("127.0.0.1", _port);
-            _ = startTask.ContinueWith(
-                t => GameFramework.Logger.LogErr(t.Exception, "WorldStressTest"),
-                TaskContinuationOptions.OnlyOnFaulted);
+            if (TryGetNet(out Net net) && net.Client != null && !net.Client.IsRunning)
+            {
+                Task startTask = net.StartClient("127.0.0.1", _port);
+                _ = startTask.ContinueWith(
+                    t => GameFramework.Logger.LogErr(t.Exception, "WorldStressTest"),
+                    TaskContinuationOptions.OnlyOnFaulted);
+            }
         }
 
         private bool IsServerRunning()
         {
-            Net net = _world._netControlPanel?.Net;
-            return net?.Server != null && net.Server.IsRunning;
+            if (TryGetNet(out Net net) && net.Server != null)
+            {
+                return net.Server.IsRunning;
+            }
+
+            return false;
         }
 
         private void StartServerWithSettings()
         {
-            Net net = _world._netControlPanel?.Net;
-            if (net == null)
-                return;
-
-            net.StartServer(_port, _maxClients, CreateSilentOptions());
-            _serverStartedByStressTest = true;
-            _lastServerPort = _port;
-            _lastServerMaxClients = _maxClients;
+            if (TryGetNet(out Net net))
+            {
+                net.StartServer(_port, _maxClients, CreateSilentOptions());
+                _serverStartedByStressTest = true;
+                _lastServerPort = _port;
+                _lastServerMaxClients = _maxClients;
+            }
         }
 
         private bool ShouldRestartServer()
         {
-            Net net = _world._netControlPanel?.Net;
-            if (net?.Server == null || !net.Server.IsRunning)
+            if (!TryGetNet(out Net net) || net.Server == null || !net.Server.IsRunning)
                 return false;
 
             if (!_serverStartedByStressTest)
@@ -231,17 +239,13 @@ public partial class World
 
         private void RequestServerRestart()
         {
-            Net net = _world._netControlPanel?.Net;
-            if (net?.Server == null)
-                return;
-
-            if (!_serverStartedByStressTest)
-                return;
-
-            _serverRestartPending = true;
-            _paused = true;
-            StopBots();
-            net.StopServer();
+            if (TryGetNet(out Net net) && net.Server != null && _serverStartedByStressTest)
+            {
+                _serverRestartPending = true;
+                _paused = true;
+                StopBots();
+                net.StopServer();
+            }
         }
 
         private void StopBots()
@@ -323,6 +327,17 @@ public partial class World
             };
         }
 
+        private bool TryGetNet(out Net net)
+        {
+            net = null;
+            if (_world._netControlPanel != null)
+            {
+                net = _world._netControlPanel.Net;
+            }
+
+            return net != null;
+        }
+
         private sealed class BotClient
         {
             private readonly GameClient _client;
@@ -330,21 +345,19 @@ public partial class World
             private readonly float _circleRadius;
             private readonly float _angularSpeed;
             private readonly float _sendIntervalSeconds;
-            private readonly ushort _port;
             private float _angle;
             private float _sendAccumulator;
             private bool _sentSpawn;
 
-            public BotClient(World world, Vector2 center, float circleRadius, float angularSpeed, float sendIntervalSeconds, ushort port)
+            public BotClient(Vector2 center, float circleRadius, float angularSpeed, float sendIntervalSeconds, ushort port)
             {
                 _center = center;
                 _circleRadius = circleRadius;
                 _angularSpeed = angularSpeed;
                 _sendIntervalSeconds = sendIntervalSeconds;
-                _port = port;
                 _client = new GameClient();
 
-                Task connectTask = _client.Connect("127.0.0.1", _port, CreateSilentOptions());
+                Task connectTask = _client.Connect("127.0.0.1", port, CreateSilentOptions());
                 _ = connectTask.ContinueWith(
                     t => GameFramework.Logger.LogErr(t.Exception, "WorldStressTest"),
                     TaskContinuationOptions.OnlyOnFaulted);

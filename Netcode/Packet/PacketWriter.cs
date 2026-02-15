@@ -1,198 +1,234 @@
 using Godot;
-using System.Collections.Generic;
+using System;
 using System.Collections;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System;
 
 namespace Framework.Netcode;
 
 public class PacketWriter : IDisposable
 {
+    private sealed class PacketMemberMap
+    {
+        public FieldInfo[] Fields { get; init; }
+        public PropertyInfo[] Properties { get; init; }
+    }
+
+    private static readonly ConcurrentDictionary<Type, PacketMemberMap> StructMemberCache = new();
+
     public MemoryStream Stream { get; } = new();
 
     private readonly BinaryWriter _writer;
 
-    public PacketWriter() => _writer = new BinaryWriter(Stream);
-
-    public void Write<T>(T v)
+    public PacketWriter()
     {
-        if (v == null)
-        {
-            throw new ArgumentNullException(nameof(v));
-        }
-
-        Type t = v.GetType();
-
-        if (t.IsPrimitive || t == typeof(string) || t == typeof(decimal))
-        {
-            WritePrimitive(v);
-            return;
-        }
-
-        if (t == typeof(Vector2))
-        {
-            WriteVector2((Vector2)(object)v);
-            return;
-        }
-
-        if (t == typeof(Vector3))
-        {
-            WriteVector3((Vector3)(object)v);
-            return;
-        }
-
-        if (t.IsEnum)
-        {
-            WriteEnum(v);
-            return;
-        }
-
-        if (t.IsArray)
-        {
-            WriteArray((Array)(object)v);
-            return;
-        }
-
-        if (t.IsGenericType)
-        {
-            WriteGeneric(v, t);
-            return;
-        }
-
-        if (t.IsClass || t.IsValueType)
-        {
-            WriteStructOrClass(v, t);
-            return;
-        }
-
-        throw new NotImplementedException("PacketWriter: " + t + " is not a supported type.");
+        _writer = new BinaryWriter(Stream);
     }
 
-    private void WritePrimitive<T>(T v)
+    /// <summary>
+    /// Legacy reflection-based write fallback retained for compatibility.
+    /// PacketGen generates packet read/write source and should be preferred for packet serialization.
+    /// </summary>
+    public void Write<T>(T value)
     {
-        switch (v)
+        if (value == null)
         {
-            case byte    k: _writer.Write(k); break;
-            case sbyte   k: _writer.Write(k); break;
-            case char    k: _writer.Write(k); break;
-            case string  k: _writer.Write(k); break;
-            case bool    k: _writer.Write(k); break;
-            case short   k: _writer.Write(k); break;
-            case ushort  k: _writer.Write(k); break;
-            case int     k: _writer.Write(k); break;
-            case uint    k: _writer.Write(k); break;
-            case float   k: _writer.Write(k); break;
-            case double  k: _writer.Write(k); break;
-            case long    k: _writer.Write(k); break;
-            case ulong   k: _writer.Write(k); break;
-            case decimal k: _writer.Write(k); break;
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        Type valueType = value.GetType();
+
+        if (IsPrimitiveLike(valueType))
+        {
+            WritePrimitive(value);
+            return;
+        }
+
+        if (valueType == typeof(Vector2))
+        {
+            WriteVector2((Vector2)(object)value);
+            return;
+        }
+
+        if (valueType == typeof(Vector3))
+        {
+            WriteVector3((Vector3)(object)value);
+            return;
+        }
+
+        if (valueType.IsEnum)
+        {
+            WriteEnum(value);
+            return;
+        }
+
+        if (valueType.IsArray)
+        {
+            WriteArray((Array)(object)value);
+            return;
+        }
+
+        if (valueType.IsGenericType)
+        {
+            WriteGeneric(value, valueType);
+            return;
+        }
+
+        if (valueType.IsClass || valueType.IsValueType)
+        {
+            WriteStructOrClass(value, valueType);
+            return;
+        }
+
+        throw new NotImplementedException($"PacketWriter: {valueType} is not a supported type.");
+    }
+
+    private static bool IsPrimitiveLike(Type type)
+    {
+        return type.IsPrimitive || type == typeof(string) || type == typeof(decimal);
+    }
+
+    private void WritePrimitive<T>(T value)
+    {
+        switch (value)
+        {
+            case byte primitive: _writer.Write(primitive); break;
+            case sbyte primitive: _writer.Write(primitive); break;
+            case char primitive: _writer.Write(primitive); break;
+            case string primitive: _writer.Write(primitive); break;
+            case bool primitive: _writer.Write(primitive); break;
+            case short primitive: _writer.Write(primitive); break;
+            case ushort primitive: _writer.Write(primitive); break;
+            case int primitive: _writer.Write(primitive); break;
+            case uint primitive: _writer.Write(primitive); break;
+            case float primitive: _writer.Write(primitive); break;
+            case double primitive: _writer.Write(primitive); break;
+            case long primitive: _writer.Write(primitive); break;
+            case ulong primitive: _writer.Write(primitive); break;
+            case decimal primitive: _writer.Write(primitive); break;
+
             default:
-                throw new NotImplementedException("PacketWriter: " + v.GetType() + " is not a supported primitive type.");
+                throw new NotImplementedException($"PacketWriter: {value.GetType()} is not a supported primitive type.");
         }
     }
 
-    private void WriteVector2(Vector2 v)
+    private void WriteVector2(Vector2 vector)
     {
-        Write(v.X);
-        Write(v.Y);
+        Write(vector.X);
+        Write(vector.Y);
     }
 
-    private void WriteVector3(Vector3 v)
+    private void WriteVector3(Vector3 vector)
     {
-        Write(v.X);
-        Write(v.Y);
-        Write(v.Z);
+        Write(vector.X);
+        Write(vector.Y);
+        Write(vector.Z);
     }
 
-    private void WriteEnum<T>(T v)
+    private void WriteEnum<T>(T value)
     {
-        // Convert enum to byte and write
-        Write((byte)Convert.ChangeType(v, typeof(byte)));
+        Write((byte)Convert.ChangeType(value, typeof(byte)));
     }
 
     private void WriteArray(Array array)
     {
-        // Write array length
         Write(array.Length);
 
-        // Write each item in the array
         foreach (object item in array)
         {
             Write(item);
         }
     }
 
-    private void WriteGeneric(object v, Type t)
+    private void WriteGeneric(object value, Type valueType)
     {
-        // Get generic type definition
-        Type g = t.GetGenericTypeDefinition();
+        Type genericDefinition = valueType.GetGenericTypeDefinition();
 
-        // Check if type is list
-        if (g == typeof(IList<>) || g == typeof(List<>))
+        if (genericDefinition == typeof(IList<>) || genericDefinition == typeof(List<>))
         {
-            IList list = (IList)v;
-            // Write list count
-            Write(list.Count);
-
-            // Write each item in the list
-            foreach (object item in list)
-            {
-                Write(item);
-            }
+            WriteList((IList)value);
+            return;
         }
-        // Check if type is dictionary
-        else if (g == typeof(IDictionary<,>) || g == typeof(Dictionary<,>))
-        {
-            IDictionary dict = (IDictionary)v;
-            // Write dictionary count
-            Write(dict.Count);
 
-            // Write each key-value pair in the dictionary
-            foreach (DictionaryEntry item in dict)
-            {
-                Write(item.Key);
-                Write(item.Value);
-            }
-        }
-        else
+        if (genericDefinition == typeof(IDictionary<,>) || genericDefinition == typeof(Dictionary<,>))
         {
-            throw new NotImplementedException("PacketWriter: " + t + " is not a supported generic type.");
+            WriteDictionary((IDictionary)value);
+            return;
+        }
+
+        throw new NotImplementedException($"PacketWriter: {valueType} is not a supported generic type.");
+    }
+
+    private void WriteList(IList list)
+    {
+        Write(list.Count);
+
+        foreach (object item in list)
+        {
+            Write(item);
         }
     }
 
-    private void WriteStructOrClass<T>(T v, Type t)
+    private void WriteDictionary(IDictionary dictionary)
     {
-        // Serialize public instance fields in metadata order
-        FieldInfo[] fields = [.. t
-            .GetFields(BindingFlags.Public | BindingFlags.Instance)
-            .OrderBy(field => field.MetadataToken)];
+        Write(dictionary.Count);
 
-        // Write each field value
-        foreach (FieldInfo field in fields)
+        foreach (DictionaryEntry item in dictionary)
         {
-            Write(field.GetValue(v));
+            Write(item.Key);
+            Write(item.Value);
+        }
+    }
+
+    private void WriteStructOrClass<T>(T value, Type valueType)
+    {
+        PacketMemberMap members = GetMembersForStructOrClass(valueType);
+
+        foreach (FieldInfo field in members.Fields)
+        {
+            Write(field.GetValue(value));
         }
 
-        // Serialize public instance properties with getters in metadata order
-        PropertyInfo[] properties = [.. t
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanRead && p.GetCustomAttributes(typeof(NetExcludeAttribute), true).Length == 0)
-            .OrderBy(property => property.MetadataToken)];
-
-        // Write each property value
-        foreach (PropertyInfo property in properties)
+        foreach (PropertyInfo property in members.Properties)
         {
-            Write(property.GetValue(v));
+            Write(property.GetValue(value));
         }
+    }
+
+    private static PacketMemberMap GetMembersForStructOrClass(Type type)
+    {
+        return StructMemberCache.GetOrAdd(type, static cachedType =>
+        {
+            FieldInfo[] fields = [.. cachedType
+                .GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .OrderBy(field => field.MetadataToken)];
+
+            PropertyInfo[] properties = [.. cachedType
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(ShouldIncludePropertyForWrite)
+                .OrderBy(property => property.MetadataToken)];
+
+            return new PacketMemberMap
+            {
+                Fields = fields,
+                Properties = properties
+            };
+        });
+    }
+
+    private static bool ShouldIncludePropertyForWrite(PropertyInfo property)
+    {
+        return property.CanRead
+            && property.GetCustomAttributes(typeof(NetExcludeAttribute), true).Length == 0;
     }
 
     public void Dispose()
     {
-        Stream.Dispose();
         _writer.Dispose();
-
+        Stream.Dispose();
         GC.SuppressFinalize(this);
     }
 }

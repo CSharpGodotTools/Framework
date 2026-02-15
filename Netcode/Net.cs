@@ -1,12 +1,28 @@
-using System;
-using System.Threading.Tasks;
 using Framework.Netcode.Client;
 using Framework.Netcode.Server;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Framework.Netcode;
 
 public class Net
 {
+    private const int ShutdownPollIntervalMs = 50;
+
+    private static readonly ENetOptions DefaultClientOptions = new()
+    {
+        PrintPacketByteSize = false,
+        PrintPacketData = false,
+        PrintPacketReceived = false,
+        PrintPacketSent = false
+    };
+
+    private readonly IGameClientFactory _clientFactory;
+    private readonly IGameServerFactory _serverFactory;
+    private readonly bool _enetInitialized;
+    private long _shutdownStarted;
+
     public event Action<GodotServer> ServerCreated;
     public event Action<GodotClient> ClientCreated;
     public event Action<GodotClient> ClientDestroyed;
@@ -18,42 +34,36 @@ public class Net
     public ushort ServerPort { get; private set; }
     public int ServerMaxClients { get; private set; }
 
-    private const int ShutdownPollIntervalMs = 50;
-
-    private readonly IGameClientFactory _clientFactory;
-    private readonly IGameServerFactory _serverFactory;
-    private readonly bool _enetInitialized;
-
     public Net(IGameClientFactory clientFactory, IGameServerFactory serverFactory)
     {
-        try
+        if (clientFactory == null)
         {
-            ENet.Library.Initialize();
-            _enetInitialized = true;
-        }
-        catch (DllNotFoundException e)
-        {
-            GameFramework.Logger.LogErr(e);
-            _enetInitialized = false;
+            throw new ArgumentNullException(nameof(clientFactory));
         }
 
-        Autoloads.Instance.PreQuit += StopThreads;
-        GameFramework.Services.Get<UI.PopupMenu>().MainMenuBtnPressed += async () => await StopThreads();
+        if (serverFactory == null)
+        {
+            throw new ArgumentNullException(nameof(serverFactory));
+        }
 
         _clientFactory = clientFactory;
         _serverFactory = serverFactory;
+        _enetInitialized = TryInitializeEnet();
 
-        Client = clientFactory.CreateClient();
-        Server = serverFactory.CreateServer();
-    }
+        Autoloads.Instance.PreQuit += StopThreads;
+        GameFramework.Services.Get<UI.PopupMenu>().MainMenuBtnPressed += OnMainMenuBtnPressed;
 
-    public void StopServer()
-    {
-        Server.Stop();
+        Client = _clientFactory.CreateClient();
+        Server = _serverFactory.CreateServer();
     }
 
     public void StartServer(ushort port, int maxClients, ENetOptions options)
     {
+        if (!CanUseENet())
+        {
+            return;
+        }
+
         if (Server.IsRunning)
         {
             Server.Log("Server is running already");
@@ -62,13 +72,24 @@ public class Net
 
         ServerPort = port;
         ServerMaxClients = maxClients;
+
         Server = _serverFactory.CreateServer();
         ServerCreated?.Invoke(Server);
         Server.Start(port, maxClients, options);
     }
 
+    public void StopServer()
+    {
+        Server.Stop();
+    }
+
     public async Task StartClient(string ip, ushort port)
     {
+        if (!CanUseENet())
+        {
+            return;
+        }
+
         if (Client.IsRunning)
         {
             Client.Log("Client is running already");
@@ -76,16 +97,9 @@ public class Net
         }
 
         Client = _clientFactory.CreateClient();
-
         ClientCreated?.Invoke(Client);
 
-        await Client.Connect(ip, port, new ENetOptions
-        {
-            PrintPacketByteSize = false,
-            PrintPacketData = false,
-            PrintPacketReceived = false,
-            PrintPacketSent = false
-        });
+        await Client.Connect(ip, port, CloneDefaultClientOptions());
     }
 
     public void StopClient()
@@ -97,42 +111,105 @@ public class Net
         }
 
         Client.Stop();
-
         ClientDestroyed?.Invoke(Client);
+    }
+
+    private bool TryInitializeEnet()
+    {
+        try
+        {
+            ENet.Library.Initialize();
+            return true;
+        }
+        catch (DllNotFoundException exception)
+        {
+            GameFramework.Logger.LogErr(exception);
+            return false;
+        }
     }
 
     private async Task StopThreads()
     {
-        // Stop the server and client
-        if (_enetInitialized)
+        if (Interlocked.CompareExchange(ref _shutdownStarted, 1, 0) != 0)
         {
-            if (Server.IsRunning)
-            {
-                Server.Stop();
-
-                while (Server.IsRunning)
-                {
-                    await Task.Delay(ShutdownPollIntervalMs);
-                }
-            }
-
-            if (Client.IsRunning)
-            {
-                Client.Stop();
-
-                while (Client.IsRunning)
-                {
-                    await Task.Delay(ShutdownPollIntervalMs);
-                }
-            }
-
-            ENet.Library.Deinitialize();
+            return;
         }
 
-        // Wait for the logger to finish enqueing the remaining logs
-        while (GameFramework.Logger.StillWorking())
+        try
+        {
+            if (_enetInitialized)
+            {
+                await StopServerIfRunning();
+                await StopClientIfRunning();
+                ENet.Library.Deinitialize();
+            }
+
+            while (GameFramework.Logger.StillWorking())
+            {
+                await Task.Delay(ShutdownPollIntervalMs);
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _shutdownStarted, 0);
+        }
+    }
+
+    private bool CanUseENet()
+    {
+        if (_enetInitialized)
+        {
+            return true;
+        }
+
+        GameFramework.Logger.LogWarning("ENet is not initialized. Network operation was ignored.");
+        return false;
+    }
+
+    private static ENetOptions CloneDefaultClientOptions()
+    {
+        return new ENetOptions
+        {
+            PrintPacketByteSize = DefaultClientOptions.PrintPacketByteSize,
+            PrintPacketData = DefaultClientOptions.PrintPacketData,
+            PrintPacketReceived = DefaultClientOptions.PrintPacketReceived,
+            PrintPacketSent = DefaultClientOptions.PrintPacketSent,
+            ShowLogTimestamps = DefaultClientOptions.ShowLogTimestamps
+        };
+    }
+
+    private async Task StopServerIfRunning()
+    {
+        if (!Server.IsRunning)
+        {
+            return;
+        }
+
+        Server.Stop();
+
+        while (Server.IsRunning)
         {
             await Task.Delay(ShutdownPollIntervalMs);
         }
+    }
+
+    private async Task StopClientIfRunning()
+    {
+        if (!Client.IsRunning)
+        {
+            return;
+        }
+
+        Client.Stop();
+
+        while (Client.IsRunning)
+        {
+            await Task.Delay(ShutdownPollIntervalMs);
+        }
+    }
+
+    private void OnMainMenuBtnPressed()
+    {
+        _ = StopThreads();
     }
 }

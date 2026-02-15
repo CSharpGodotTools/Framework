@@ -1,23 +1,23 @@
 using ENet;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Threading;
-using System;
 using GodotUtils;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Framework.Netcode.Server;
 
 public abstract class GodotServer : ENetServer
 {
+    private const string LogTag = "Server";
+
     /// <summary>
     /// <para>
-    /// A thread safe way to start the server. Max clients could be 100 and port could
-    /// be set to something like 25565.
+    /// Thread-safe server start entrypoint.
     /// </para>
-    /// 
+    ///
     /// <para>
-    /// Options contains settings for enabling certain logging features and ignored 
-    /// packets are packets that do not get logged to the console.
+    /// Options controls logging behavior and ignored packets are excluded from logging.
     /// </para>
     /// </summary>
     public async void Start(ushort port, int maxClients, ENetOptions options, params Type[] ignoredPackets)
@@ -30,7 +30,6 @@ public abstract class GodotServer : ENetServer
 
         Options = options ?? new ENetOptions();
         InitIgnoredPackets(ignoredPackets);
-
         CTS = new CancellationTokenSource();
 
         try
@@ -45,9 +44,9 @@ public abstract class GodotServer : ENetServer
         {
             // Expected when stopping the server.
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            GameFramework.Logger.LogErr(e, "Server");
+            GameFramework.Logger.LogErr(exception, LogTag);
         }
     }
 
@@ -85,73 +84,85 @@ public abstract class GodotServer : ENetServer
             Log("Server has stopped already");
             return;
         }
+
         ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.Stop));
     }
 
     /// <summary>
-    /// Send a packet to a client. Thread safe.
+    /// Send a packet to one client. Thread safe.
     /// </summary>
     public void Send(ServerPacket packet, Peer peer)
     {
-        packet.Write();
-
-        Type type = packet.GetType();
-
-        if (Options.PrintPacketSent && !IgnoredPackets.Contains(type))
+        if (packet == null)
         {
-            string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
-            Log($"Sending packet {type.Name} {FormatByteSize(packet.GetSize())}to client {peer.ID}{packetData}");
+            throw new ArgumentNullException(nameof(packet));
         }
+
+        packet.Write();
+        LogSend(packet, $"to client {peer.ID}");
 
         packet.SetSendType(SendType.Peer);
         packet.SetPeer(peer);
-
         EnqueuePacket(packet);
     }
 
+    /// <summary>
+    /// Broadcast a packet to all clients or all except provided peers. Thread safe.
+    /// </summary>
     public void Broadcast(ServerPacket packet, params Peer[] clients)
     {
-        packet.Write();
-
-        Type type = packet.GetType();
-
-        if (Options.PrintPacketSent && !IgnoredPackets.Contains(type))
+        if (packet == null)
         {
-            string byteSize = GetByteSizeString(packet);
-            string peerDescription = GetPeerDescription(clients);
-            string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
-
-            string message = $"Broadcasting packet {type.Name} {byteSize} {peerDescription}{packetData}";
-
-            Log(message);
+            throw new ArgumentNullException(nameof(packet));
         }
 
-        packet.SetSendType(SendType.Broadcast);
-        packet.SetPeers(clients);
+        Peer[] peers = clients ?? [];
+        packet.Write();
 
+        string peerDescription = GetBroadcastPeerDescription(peers);
+        LogSend(packet, peerDescription, includeSeparatorPadding: true);
+
+        packet.SetSendType(SendType.Broadcast);
+        packet.SetPeers(peers);
         EnqueuePacket(packet);
     }
 
-    private string GetByteSizeString(ServerPacket packet)
+    private void LogSend(ServerPacket packet, string targetDescription, bool includeSeparatorPadding = false)
     {
-        return Options.PrintPacketByteSize ? $"({packet.GetSize()} bytes)" : "";
+        Type packetType = packet.GetType();
+        if (!Options.PrintPacketSent || IgnoredPackets.Contains(packetType))
+        {
+            return;
+        }
+
+        string byteSize = FormatByteSize(packet.GetSize());
+        if (includeSeparatorPadding && string.IsNullOrEmpty(byteSize))
+        {
+            byteSize = " ";
+        }
+
+        string packetData = string.Empty;
+        if (Options.PrintPacketData)
+        {
+            packetData = $"\n{packet.ToFormattedString()}";
+        }
+
+        Log($"Sending packet {packetType.Name} {byteSize}{targetDescription}{packetData}");
     }
 
-    private static string GetPeerDescription(Peer[] clients)
+    private static string GetBroadcastPeerDescription(Peer[] peers)
     {
-        if (clients.Length == 0)
+        if (peers.Length == 0)
         {
             return "to everyone";
         }
-        else if (clients.Length == 1)
+
+        if (peers.Length == 1)
         {
-            string peerId = clients[0].ID.ToString();
-            return $"to everyone except peer {peerId}";
+            return $"to everyone except peer {peers[0].ID}";
         }
-        else
-        {
-            string peerIds = clients.Select(x => x.ID).ToFormattedString();
-            return $"to peers {peerIds}";
-        }
+
+        string peerIds = peers.Select(peer => peer.ID).ToFormattedString();
+        return $"to peers {peerIds}";
     }
 }

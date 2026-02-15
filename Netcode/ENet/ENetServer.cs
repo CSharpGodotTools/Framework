@@ -12,14 +12,22 @@ namespace Framework.Netcode.Server;
 // ENet API Reference: https://github.com/SoftwareGuy/ENet-CSharp/blob/master/DOCUMENTATION.md
 public abstract class ENetServer : ENetLow
 {
+    private const string LogTag = "Server";
+
     protected ConcurrentQueue<Cmd<ENetServerOpcode>> ENetCmds { get; } = new();
 
-    private readonly ConcurrentQueue<(Packet, Peer)> _incoming = new();
+    private readonly ConcurrentQueue<(Packet Packet, Peer Peer)> _incoming = new();
     private readonly ConcurrentQueue<ServerPacket> _outgoing = new();
-
     private readonly ConcurrentDictionary<Type, Action<ClientPacket, Peer>> _clientPacketHandlers = new();
 
-    protected void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler) 
+    /// <summary>
+    /// This dictionary is only accessed on the ENet worker thread.
+    /// </summary>
+    private readonly Dictionary<uint, Peer> _peers = [];
+
+    private readonly ServerLogAggregator _logAggregator = new();
+
+    protected void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler)
         where TPacket : ClientPacket
     {
         if (handler == null)
@@ -31,22 +39,12 @@ public abstract class ENetServer : ENetLow
     }
 
     /// <summary>
-    /// This Dictionary is NOT thread safe and should only be accessed on the ENet Thread
-    /// </summary>
-    private readonly Dictionary<uint, Peer> _peers = [];
-
-    private readonly ServerLogAggregator _logAggregator = new();
-
-    /// <summary>
     /// Log a message as the server. This function is thread safe.
     /// </summary>
     public sealed override void Log(object message, BBColor color = BBColor.Gray)
     {
-        string timestamp = string.Empty;
-        if (Options != null && Options.ShowLogTimestamps)
-            timestamp = $"[{DateTime.Now:HH:mm:ss}] ";
-
-        GameFramework.Logger.Log($"{timestamp}[Server] {message}", color);
+        string timestampPrefix = BuildTimestampPrefix();
+        GameFramework.Logger.Log($"{timestampPrefix}[Server] {message}", color);
     }
 
     /// <summary>
@@ -76,26 +74,23 @@ public abstract class ENetServer : ENetLow
         _logAggregator.RecordConnect(netEvent.Peer.ID);
     }
 
-    protected virtual void OnPeerDisconnect(Event netEvent) { }
+    protected virtual void OnPeerDisconnect(Event netEvent)
+    {
+    }
 
     protected sealed override void OnDisconnectLow(Event netEvent)
     {
-        _peers.Remove(netEvent.Peer.ID);
-        TryInvokePeerDisconnect(netEvent);
-        _logAggregator.RecordDisconnect(netEvent.Peer.ID);
+        HandlePeerDisconnected(netEvent, _logAggregator.RecordDisconnect);
     }
 
     protected sealed override void OnTimeoutLow(Event netEvent)
     {
-        _peers.Remove(netEvent.Peer.ID);
-        TryInvokePeerDisconnect(netEvent);
-        _logAggregator.RecordTimeout(netEvent.Peer.ID);
+        HandlePeerDisconnected(netEvent, _logAggregator.RecordTimeout);
     }
 
     protected sealed override void OnReceiveLow(Event netEvent)
     {
         Packet packet = netEvent.Packet;
-
         if (packet.Length > GamePacket.MaxSize)
         {
             Log($"Tried to read packet from client of size {packet.Length} when max packet size is {GamePacket.MaxSize}");
@@ -108,11 +103,13 @@ public abstract class ENetServer : ENetLow
 
     protected void WorkerThread(ushort port, int maxClients)
     {
-        Host = CreateServerHost(port, maxClients);
-
-        if (Host == null)
+        Host host = TryCreateServerHost(port, maxClients);
+        if (host == null)
+        {
             return;
+        }
 
+        Host = host;
         Interlocked.Exchange(ref _running, 1);
         Log("Server is running");
 
@@ -122,10 +119,11 @@ public abstract class ENetServer : ENetLow
         }
         finally
         {
+            _logAggregator.Flush(message => Log(message));
             Host.Dispose();
+            Interlocked.Exchange(ref _running, 0);
+            Log("Server has stopped");
         }
-        
-        Log("Server has stopped");
     }
 
     protected sealed override void OnDisconnectCleanup(Peer peer)
@@ -134,8 +132,17 @@ public abstract class ENetServer : ENetLow
         _peers.Remove(peer.ID);
     }
 
-    /// <returns>Host or null if failed to create host</returns>
-    private Host CreateServerHost(ushort port, int maxClients)
+    private string BuildTimestampPrefix()
+    {
+        if (Options == null || !Options.ShowLogTimestamps)
+        {
+            return string.Empty;
+        }
+
+        return $"[{DateTime.Now:HH:mm:ss}] ";
+    }
+
+    private Host TryCreateServerHost(ushort port, int maxClients)
     {
         Host host = new();
 
@@ -143,9 +150,10 @@ public abstract class ENetServer : ENetLow
         {
             host.Create(new Address { Port = port }, maxClients);
         }
-        catch (InvalidOperationException e)
+        catch (InvalidOperationException exception)
         {
-            Log($"A server is running on port {port} already! {e.Message}");
+            Log($"A server is running on port {port} already! {exception.Message}");
+            host.Dispose();
             return null;
         }
 
@@ -154,20 +162,20 @@ public abstract class ENetServer : ENetLow
 
     private void ProcessEnetCommands()
     {
-        while (ENetCmds.TryDequeue(out Cmd<ENetServerOpcode> cmd))
+        while (ENetCmds.TryDequeue(out Cmd<ENetServerOpcode> command))
         {
-            switch (cmd.Opcode)
+            switch (command.Opcode)
             {
                 case ENetServerOpcode.Stop:
                     HandleStopCommand();
                     break;
 
                 case ENetServerOpcode.Kick:
-                    HandleKickCommand(cmd);
+                    HandleKickCommand(command);
                     break;
 
                 case ENetServerOpcode.KickAll:
-                    HandleKickAllCommand(cmd);
+                    HandleKickAllCommand(command);
                     break;
             }
         }
@@ -175,36 +183,39 @@ public abstract class ENetServer : ENetLow
 
     private void HandleStopCommand()
     {
-        KickAll(DisconnectOpcode.Stopping);
-
         if (CTS.IsCancellationRequested)
         {
             Log("Server is in the middle of stopping");
             return;
         }
 
+        DisconnectAllPeers(DisconnectOpcode.Stopping);
         CTS.Cancel();
     }
 
-    private void HandleKickCommand(Cmd<ENetServerOpcode> cmd)
+    private void HandleKickCommand(Cmd<ENetServerOpcode> command)
     {
-        uint id = (uint)cmd.Data[0];
-        DisconnectOpcode opcode = (DisconnectOpcode)cmd.Data[1];
+        uint peerId = (uint)command.Data[0];
+        DisconnectOpcode opcode = (DisconnectOpcode)command.Data[1];
 
-        if (!_peers.TryGetValue(id, out Peer peer))
+        if (!_peers.TryGetValue(peerId, out Peer peer))
         {
-            Log($"Tried to kick peer with id '{id}' but this peer does not exist");
+            Log($"Tried to kick peer with id '{peerId}' but this peer does not exist");
             return;
         }
 
         peer.DisconnectNow((uint)opcode);
-        _peers.Remove(id);
+        _peers.Remove(peerId);
     }
 
-    private void HandleKickAllCommand(Cmd<ENetServerOpcode> cmd)
+    private void HandleKickAllCommand(Cmd<ENetServerOpcode> command)
     {
-        DisconnectOpcode opcode = (DisconnectOpcode)cmd.Data[0];
+        DisconnectOpcode opcode = (DisconnectOpcode)command.Data[0];
+        DisconnectAllPeers(opcode);
+    }
 
+    private void DisconnectAllPeers(DisconnectOpcode opcode)
+    {
         foreach (Peer peer in _peers.Values)
         {
             peer.DisconnectNow((uint)opcode);
@@ -215,86 +226,124 @@ public abstract class ENetServer : ENetLow
 
     private void ProcessIncomingPackets()
     {
-        while (_incoming.TryDequeue(out (Packet ENetPacket, Peer Peer) packetPeer))
+        while (_incoming.TryDequeue(out (Packet Packet, Peer Peer) queuedPacket))
         {
-            PacketReader reader = new(packetPeer.ENetPacket);
-
-            try
-            {
-                if (!TryGetPacketAndType(reader, out ClientPacket clientPacket, out Type type))
-                    continue;
-
-                if (!TryReadPacket(clientPacket, reader, out string err))
-                {
-                    Log($"Received malformed packet: {err} (Ignoring)");
-                    continue;
-                }
-
-                if (!_clientPacketHandlers.TryGetValue(type, out Action<ClientPacket, Peer> handler))
-                {
-                    Log($"No handler registered for client packet {type.Name} (Ignoring)");
-                    continue;
-                }
-
-                try
-                {
-                    handler(clientPacket, packetPeer.Peer);
-                }
-                catch (Exception e)
-                {
-                    GameFramework.Logger.LogErr(e, "Server");
-                    continue;
-                }
-
-                LogPacketReceived(type, packetPeer.Peer.ID, clientPacket);
-            }
-            finally
-            {
-                reader.Dispose();
-            }
+            HandleIncomingPacket(queuedPacket.Packet, queuedPacket.Peer);
         }
     }
 
-    private bool TryGetPacketAndType(PacketReader packetReader, out ClientPacket clientPacket, out Type type)
+    private void HandleIncomingPacket(Packet enetPacket, Peer peer)
     {
-        // The reader is positioned at start of packet when constructed
-        byte opcode = packetReader.ReadByte();
+        PacketReader reader = new(enetPacket);
 
-        if (!PacketRegistry.ClientPacketTypes.TryGetValue(opcode, out type))
+        try
+        {
+            if (!TryGetPacketAndType(reader, out ClientPacket packet, out Type packetType))
+            {
+                return;
+            }
+
+            if (!TryReadPacket(packet, reader, out string errorMessage))
+            {
+                Log($"Received malformed packet: {errorMessage} (Ignoring)");
+                return;
+            }
+
+            if (!_clientPacketHandlers.TryGetValue(packetType, out Action<ClientPacket, Peer> handler))
+            {
+                Log($"No handler registered for client packet {packetType.Name} (Ignoring)");
+                return;
+            }
+
+            if (!TryInvokePacketHandler(handler, packet, peer))
+            {
+                return;
+            }
+
+            LogPacketReceived(packetType, peer.ID, packet);
+        }
+        finally
+        {
+            reader.Dispose();
+        }
+    }
+
+    private bool TryGetPacketAndType(PacketReader packetReader, out ClientPacket clientPacket, out Type packetType)
+    {
+        byte opcode;
+        try
+        {
+            opcode = packetReader.ReadByte();
+        }
+        catch (EndOfStreamException exception)
+        {
+            Log($"Received malformed packet: {exception.Message} (Ignoring)");
+            clientPacket = null;
+            packetType = null;
+            return false;
+        }
+
+        if (!PacketRegistry.ClientPacketTypes.TryGetValue(opcode, out packetType))
         {
             Log($"Received malformed opcode: {opcode} (Ignoring)");
             clientPacket = null;
             return false;
         }
 
-        clientPacket = PacketRegistry.ClientPacketInfo[type].Instance;
+        clientPacket = PacketRegistry.ClientPacketInfo[packetType].Instance;
         return true;
     }
 
-    private static bool TryReadPacket(ClientPacket clientPacket, PacketReader packetReader, out string error)
+    private static bool TryReadPacket(ClientPacket clientPacket, PacketReader packetReader, out string errorMessage)
     {
         try
         {
             clientPacket.Read(packetReader);
-            error = "No error";
+            errorMessage = string.Empty;
             return true;
         }
-        catch (EndOfStreamException e)
+        catch (EndOfStreamException exception)
         {
-            error = e.Message;
+            errorMessage = exception.Message;
             return false;
         }
     }
 
-    private void LogPacketReceived(Type type, uint clientId, ClientPacket packet)
+    private bool TryInvokePacketHandler(Action<ClientPacket, Peer> handler, ClientPacket packet, Peer peer)
     {
-        if (!Options.PrintPacketReceived || IgnoredPackets.Contains(type))
+        try
+        {
+            handler(packet, peer);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            GameFramework.Logger.LogErr(exception, LogTag);
+            return false;
+        }
+    }
+
+    private void LogPacketReceived(Type packetType, uint clientId, ClientPacket packet)
+    {
+        if (!Options.PrintPacketReceived || IgnoredPackets.Contains(packetType))
+        {
             return;
+        }
 
         string packetData = string.Empty;
         if (Options.PrintPacketData)
+        {
             packetData = $"\n{packet.ToFormattedString()}";
-        Log($"Received packet: {type.Name} from client {clientId}{packetData}");
+        }
+
+        Log($"Received packet: {packetType.Name} from client {clientId}{packetData}");
+    }
+
+    private void HandlePeerDisconnected(Event netEvent, Action<uint> logEvent)
+    {
+        _peers.Remove(netEvent.Peer.ID);
+        TryInvokePeerDisconnect(netEvent);
+        logEvent(netEvent.Peer.ID);
     }
 
     private void TryInvokePeerDisconnect(Event netEvent)
@@ -303,9 +352,9 @@ public abstract class ENetServer : ENetLow
         {
             OnPeerDisconnect(netEvent);
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            GameFramework.Logger.LogErr(e, "Server");
+            GameFramework.Logger.LogErr(exception, LogTag);
         }
     }
 
@@ -316,7 +365,6 @@ public abstract class ENetServer : ENetLow
             try
             {
                 SendType sendType = packet.GetSendType();
-
                 switch (sendType)
                 {
                     case SendType.Peer:
@@ -328,9 +376,9 @@ public abstract class ENetServer : ENetLow
                         break;
                 }
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                GameFramework.Logger.LogErr(e, "Server");
+                GameFramework.Logger.LogErr(exception, LogTag);
             }
         }
     }
@@ -378,17 +426,23 @@ public abstract class ENetServer : ENetLow
         public void Flush(Action<string> log)
         {
             if (_connectedCount == 0 && _disconnectedCount == 0 && _timeoutCount == 0)
+            {
                 return;
+            }
 
             if (_windowStartTicks == 0 || _lastEventTicks == 0)
+            {
                 return;
+            }
 
-            long now = Stopwatch.GetTimestamp();
-            double sinceLast = (now - _lastEventTicks) / (double)Stopwatch.Frequency;
+            long nowTicks = Stopwatch.GetTimestamp();
+            double sinceLast = (nowTicks - _lastEventTicks) / (double)Stopwatch.Frequency;
             double windowSeconds = (_lastEventTicks - _windowStartTicks) / (double)Stopwatch.Frequency;
 
             if (sinceLast < QuietGapSeconds && windowSeconds < MaxWindowSeconds)
+            {
                 return;
+            }
 
             int connects = _connectedCount;
             int disconnects = _disconnectedCount;
@@ -413,34 +467,49 @@ public abstract class ENetServer : ENetLow
             _lastTimeoutPeerId = 0;
 
             double reportSeconds = Math.Max(windowSeconds, 0.01);
+            List<(long Tick, Action LogAction)> logEntries = new(3);
 
-            List<(long Tick, Action LogAction)> entries = new(3);
             if (connects > 0)
-                entries.Add((lastConnectTicks, () => log(FormatConnectMessage(connects, lastConnectPeerId, reportSeconds))));
-            if (disconnects > 0)
-                entries.Add((lastDisconnectTicks, () => log(FormatDisconnectMessage(disconnects, lastDisconnectPeerId, reportSeconds))));
-            if (timeouts > 0)
-                entries.Add((lastTimeoutTicks, () => log(FormatTimeoutMessage(timeouts, lastTimeoutPeerId, reportSeconds))));
+            {
+                logEntries.Add((lastConnectTicks, () => log(FormatConnectMessage(connects, lastConnectPeerId, reportSeconds))));
+            }
 
-            entries.Sort(static (a, b) => a.Tick.CompareTo(b.Tick));
-            foreach (var entry in entries)
+            if (disconnects > 0)
+            {
+                logEntries.Add((lastDisconnectTicks, () => log(FormatDisconnectMessage(disconnects, lastDisconnectPeerId, reportSeconds))));
+            }
+
+            if (timeouts > 0)
+            {
+                logEntries.Add((lastTimeoutTicks, () => log(FormatTimeoutMessage(timeouts, lastTimeoutPeerId, reportSeconds))));
+            }
+
+            logEntries.Sort(static (left, right) => left.Tick.CompareTo(right.Tick));
+
+            foreach ((long Tick, Action LogAction) entry in logEntries)
+            {
                 entry.LogAction();
+            }
         }
 
-        private void MarkEvent(ref long lastEventKindTicks)
+        private void MarkEvent(ref long eventTypeLastTicks)
         {
-            long now = Stopwatch.GetTimestamp();
+            long nowTicks = Stopwatch.GetTimestamp();
             if (_windowStartTicks == 0)
-                _windowStartTicks = now;
+            {
+                _windowStartTicks = nowTicks;
+            }
 
-            _lastEventTicks = now;
-            lastEventKindTicks = now;
+            _lastEventTicks = nowTicks;
+            eventTypeLastTicks = nowTicks;
         }
 
         private static string FormatCount(string singular, int count)
         {
             if (count == 1)
+            {
                 return $"1 {singular}";
+            }
 
             return $"{count} {singular}s";
         }
@@ -448,7 +517,9 @@ public abstract class ENetServer : ENetLow
         private static string FormatLastSuffix(int count, double seconds)
         {
             if (count == 1)
+            {
                 return string.Empty;
+            }
 
             return $" (last {seconds:0.##}s)";
         }
@@ -456,7 +527,9 @@ public abstract class ENetServer : ENetLow
         private static string FormatConnectMessage(int count, uint peerId, double seconds)
         {
             if (count == 1)
+            {
                 return $"Client with id {peerId} connected";
+            }
 
             return $"{FormatCount("client", count)} connected{FormatLastSuffix(count, seconds)}";
         }
@@ -464,7 +537,9 @@ public abstract class ENetServer : ENetLow
         private static string FormatDisconnectMessage(int count, uint peerId, double seconds)
         {
             if (count == 1)
+            {
                 return $"Client with id {peerId} disconnected";
+            }
 
             return $"{FormatCount("client", count)} disconnected{FormatLastSuffix(count, seconds)}";
         }
@@ -472,7 +547,9 @@ public abstract class ENetServer : ENetLow
         private static string FormatTimeoutMessage(int count, uint peerId, double seconds)
         {
             if (count == 1)
+            {
                 return $"Client with id {peerId} timed out";
+            }
 
             return $"{FormatCount("client", count)} timed out{FormatLastSuffix(count, seconds)}";
         }

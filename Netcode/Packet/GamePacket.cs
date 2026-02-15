@@ -1,22 +1,18 @@
 using ENet;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 
 namespace Framework.Netcode;
 
 /// <summary>
-/// A base class with common functionality for Client and Server packets
+/// Shared packet functionality for client-to-server and server-to-client packets.
 /// </summary>
 public abstract class GamePacket
 {
     public static int MaxSize => 8192;
 
-    protected Peer[] Peers { get; private set; }
+    protected Peer[] Peers { get; private set; } = [];
     protected byte ChannelId { get; }
 
-    // Packets are reliable by default
     private readonly PacketFlags _packetFlags = PacketFlags.Reliable;
     private long _size;
     private byte[] _data;
@@ -38,7 +34,12 @@ public abstract class GamePacket
 
     public void SetPeers(Peer[] peers)
     {
-        Peers = peers;
+        if (peers == null)
+        {
+            throw new ArgumentNullException(nameof(peers));
+        }
+
+        Peers = [.. peers];
     }
 
     public long GetSize()
@@ -48,18 +49,31 @@ public abstract class GamePacket
 
     public abstract byte GetOpcode();
 
+    /// <summary>
+    /// Writes packet payload data after opcode serialization.
+    /// PacketGen generates this path in packet partial classes, and reflection fallback should be avoided for new packets.
+    /// </summary>
     public virtual void Write(PacketWriter writer)
     {
-        // Handled by source generator
+        // Implemented in generated packet partials.
     }
 
+    /// <summary>
+    /// Reads packet payload data after opcode deserialization.
+    /// PacketGen generates this path in packet partial classes, and reflection fallback should be avoided for new packets.
+    /// </summary>
     public virtual void Read(PacketReader reader)
     {
-        // Handled by source generator
+        // Implemented in generated packet partials.
     }
 
     protected Packet CreateENetPacket()
     {
+        if (_data == null)
+        {
+            throw new InvalidOperationException($"{GetType().Name} cannot create an ENet packet before Write() is called.");
+        }
+
         Packet enetPacket = default;
         enetPacket.Create(_data, _packetFlags);
         return enetPacket;

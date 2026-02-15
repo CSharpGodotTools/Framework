@@ -1,229 +1,267 @@
 using Godot;
-using System.Collections.Generic;
+using System;
 using System.Collections;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System;
 
 namespace Framework.Netcode;
 
 public class PacketReader : IDisposable
 {
+    private sealed class PacketMemberMap
+    {
+        public FieldInfo[] Fields { get; init; }
+        public PropertyInfo[] Properties { get; init; }
+    }
+
+    private static readonly MethodInfo GenericReadMethod = typeof(PacketReader)
+        .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+        .First(method => method.IsGenericMethod && method.Name == nameof(Read));
+
+    private static readonly ConcurrentDictionary<Type, PacketMemberMap> StructMemberCache = new();
+
     private readonly MemoryStream _stream;
     private readonly BinaryReader _reader;
-    private readonly byte[] _readBuffer = new byte[GamePacket.MaxSize];
+    private readonly byte[] _readBuffer;
 
     public PacketReader(ENet.Packet packet)
     {
-        _stream = new MemoryStream(_readBuffer);
-        _reader = new BinaryReader(_stream);
+        int packetLength = packet.Length;
+        _readBuffer = new byte[packetLength];
         packet.CopyTo(_readBuffer);
         packet.Dispose();
+
+        _stream = new MemoryStream(_readBuffer, writable: false);
+        _reader = new BinaryReader(_stream);
     }
 
-    public byte    ReadByte()           => _reader.ReadByte();
-    public sbyte   ReadSByte()          => _reader.ReadSByte();
-    public char    ReadChar()           => _reader.ReadChar();
-    public string  ReadString()         => _reader.ReadString();
-    public bool    ReadBool()           => _reader.ReadBoolean();
-    public short   ReadShort()          => _reader.ReadInt16();
-    public ushort  ReadUShort()         => _reader.ReadUInt16();
-    public int     ReadInt()            => _reader.ReadInt32();
-    public uint    ReadUInt()           => _reader.ReadUInt32();
-    public float   ReadFloat()          => _reader.ReadSingle();
-    public double  ReadDouble()         => _reader.ReadDouble();
-    public long    ReadLong()           => _reader.ReadInt64();
-    public ulong   ReadULong()          => _reader.ReadUInt64();
-    public decimal ReadDecimal()        => _reader.ReadDecimal();
-    public byte[]  ReadBytes(int count) => _reader.ReadBytes(count);
-    public byte[]  ReadBytes()          => ReadBytes(ReadInt());
-    public Vector2 ReadVector2()        => new(ReadFloat(), ReadFloat());
-    public Vector3 ReadVector3()        => new(ReadFloat(), ReadFloat(), ReadFloat());
+    public byte ReadByte() => _reader.ReadByte();
+    public sbyte ReadSByte() => _reader.ReadSByte();
+    public char ReadChar() => _reader.ReadChar();
+    public string ReadString() => _reader.ReadString();
+    public bool ReadBool() => _reader.ReadBoolean();
+    public short ReadShort() => _reader.ReadInt16();
+    public ushort ReadUShort() => _reader.ReadUInt16();
+    public int ReadInt() => _reader.ReadInt32();
+    public uint ReadUInt() => _reader.ReadUInt32();
+    public float ReadFloat() => _reader.ReadSingle();
+    public double ReadDouble() => _reader.ReadDouble();
+    public long ReadLong() => _reader.ReadInt64();
+    public ulong ReadULong() => _reader.ReadUInt64();
+    public decimal ReadDecimal() => _reader.ReadDecimal();
+    public byte[] ReadBytes(int count) => _reader.ReadBytes(count);
+    public byte[] ReadBytes() => ReadBytes(ReadInt());
+    public Vector2 ReadVector2() => new(ReadFloat(), ReadFloat());
+    public Vector3 ReadVector3() => new(ReadFloat(), ReadFloat(), ReadFloat());
 
+    /// <summary>
+    /// Legacy reflection-based read fallback retained for compatibility.
+    /// PacketGen generates packet read/write source and should be preferred for packet serialization.
+    /// </summary>
     public T Read<T>()
     {
-        Type t = typeof(T);
+        Type type = typeof(T);
+        return ReadTyped<T>(type);
+    }
 
-        if (t.IsPrimitive || t == typeof(string) || t == typeof(decimal))
+    /// <summary>
+    /// Legacy reflection-based read fallback retained for compatibility.
+    /// PacketGen generates packet read/write source and should be preferred for packet serialization.
+    /// </summary>
+    public object Read(Type type)
+    {
+        if (type == null)
         {
-            return ReadPrimitive<T>(t);
+            throw new ArgumentNullException(nameof(type));
         }
 
-        if (t == typeof(Vector2))
+        MethodInfo readMethod = GenericReadMethod.MakeGenericMethod(type);
+        return readMethod.Invoke(this, null);
+    }
+
+    private T ReadTyped<T>(Type type)
+    {
+        if (IsPrimitiveLike(type))
+        {
+            return ReadPrimitive<T>(type);
+        }
+
+        if (type == typeof(Vector2))
         {
             return (T)(object)ReadVector2();
         }
 
-        if (t == typeof(Vector3))
+        if (type == typeof(Vector3))
         {
             return (T)(object)ReadVector3();
         }
 
-        if (t.IsGenericType)
+        if (type.IsGenericType)
         {
-            return ReadGeneric<T>(t);
+            return ReadGeneric<T>(type);
         }
 
-        if (t.IsEnum)
+        if (type.IsEnum)
         {
             return ReadEnum<T>();
         }
 
-        if (t.IsArray)
+        if (type.IsArray)
         {
-            return (T)(object)ReadArray(t.GetElementType());
+            Type elementType = type.GetElementType();
+            return (T)(object)ReadArray(elementType);
         }
 
-        if (t.IsValueType || t.IsClass)
+        if (type.IsValueType || type.IsClass)
         {
-            return ReadStructOrClass<T>(t);
+            return ReadStructOrClass<T>(type);
         }
 
-        throw new NotImplementedException("PacketReader: " + t + " is not a supported type.");
+        throw new NotImplementedException($"PacketReader: {type} is not a supported type.");
     }
 
-    private T ReadPrimitive<T>(Type t)
+    private static bool IsPrimitiveLike(Type type)
     {
-        if (t == typeof(byte))   return (T)(object)ReadByte();
-        if (t == typeof(sbyte))  return (T)(object)ReadSByte();
-        if (t == typeof(char))   return (T)(object)ReadChar();
-        if (t == typeof(string)) return (T)(object)ReadString();
-        if (t == typeof(bool))   return (T)(object)ReadBool();
-        if (t == typeof(short))  return (T)(object)ReadShort();
-        if (t == typeof(ushort)) return (T)(object)ReadUShort();
-        if (t == typeof(int))    return (T)(object)ReadInt();
-        if (t == typeof(uint))   return (T)(object)ReadUInt();
-        if (t == typeof(float))  return (T)(object)ReadFloat();
-        if (t == typeof(double)) return (T)(object)ReadDouble();
-        if (t == typeof(long))   return (T)(object)ReadLong();
-        if (t == typeof(ulong))  return (T)(object)ReadULong();
-        if (t == typeof(decimal)) return (T)(object)ReadDecimal();
+        return type.IsPrimitive || type == typeof(string) || type == typeof(decimal);
+    }
 
-        throw new NotImplementedException("PacketReader: " + t + " is not a supported primitive type.");
+    private T ReadPrimitive<T>(Type type)
+    {
+        if (type == typeof(byte)) return (T)(object)ReadByte();
+        if (type == typeof(sbyte)) return (T)(object)ReadSByte();
+        if (type == typeof(char)) return (T)(object)ReadChar();
+        if (type == typeof(string)) return (T)(object)ReadString();
+        if (type == typeof(bool)) return (T)(object)ReadBool();
+        if (type == typeof(short)) return (T)(object)ReadShort();
+        if (type == typeof(ushort)) return (T)(object)ReadUShort();
+        if (type == typeof(int)) return (T)(object)ReadInt();
+        if (type == typeof(uint)) return (T)(object)ReadUInt();
+        if (type == typeof(float)) return (T)(object)ReadFloat();
+        if (type == typeof(double)) return (T)(object)ReadDouble();
+        if (type == typeof(long)) return (T)(object)ReadLong();
+        if (type == typeof(ulong)) return (T)(object)ReadULong();
+        if (type == typeof(decimal)) return (T)(object)ReadDecimal();
+
+        throw new NotImplementedException($"PacketReader: {type} is not a supported primitive type.");
     }
 
     private T ReadEnum<T>()
     {
-        // Read byte and convert to enum type T
         return (T)Enum.ToObject(typeof(T), ReadByte());
     }
 
-    private T ReadGeneric<T>(Type t)
+    private T ReadGeneric<T>(Type genericType)
     {
-        // Get generic type definition
-        Type g = t.GetGenericTypeDefinition();
+        Type genericDefinition = genericType.GetGenericTypeDefinition();
 
-        // Check if type is list
-        if (g == typeof(IList<>) || g == typeof(List<>))
+        if (genericDefinition == typeof(IList<>) || genericDefinition == typeof(List<>))
         {
-            // Get list element type
-            Type vt = t.GetGenericArguments()[0];
-
-            // Create list instance
-            IList list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(vt));
-
-            // Read list count
-            int count = ReadInt();
-
-            // Populate list
-            for (int i = 0; i < count; i++)
-            {
-                list.Add(Read(vt));
-            }
-
-            // Return list as T
-            return (T)list;
+            return ReadList<T>(genericType);
         }
 
-        // Check if type is dictionary
-        if (g == typeof(IDictionary<,>) || g == typeof(Dictionary<,>))
+        if (genericDefinition == typeof(IDictionary<,>) || genericDefinition == typeof(Dictionary<,>))
         {
-            // Get dictionary key and value types
-            Type kt = t.GetGenericArguments()[0];
-            Type vt = t.GetGenericArguments()[1];
-
-            // Create dictionary instance
-            IDictionary dict = (IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(kt, vt));
-
-            // Read dictionary count
-            int count = ReadInt();
-
-            // Populate dictionary
-            for (int i = 0; i < count; i++)
-            {
-                dict.Add(Read(kt), Read(vt));
-            }
-
-            // Return dictionary as T
-            return (T)dict;
+            return ReadDictionary<T>(genericType);
         }
 
-        // Throw exception for unsupported generic type
-        throw new NotImplementedException("PacketReader: " + t + " is not a supported generic type.");
+        throw new NotImplementedException($"PacketReader: {genericType} is not a supported generic type.");
+    }
+
+    private T ReadList<T>(Type listType)
+    {
+        Type valueType = listType.GetGenericArguments()[0];
+        IList list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(valueType));
+
+        int count = ReadInt();
+        for (int index = 0; index < count; index++)
+        {
+            list.Add(Read(valueType));
+        }
+
+        return (T)list;
+    }
+
+    private T ReadDictionary<T>(Type dictionaryType)
+    {
+        Type keyType = dictionaryType.GetGenericArguments()[0];
+        Type valueType = dictionaryType.GetGenericArguments()[1];
+        IDictionary dictionary = (IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType));
+
+        int count = ReadInt();
+        for (int index = 0; index < count; index++)
+        {
+            object key = Read(keyType);
+            object value = Read(valueType);
+            dictionary.Add(key, value);
+        }
+
+        return (T)dictionary;
     }
 
     private Array ReadArray(Type elementType)
     {
         int count = ReadInt();
         Array array = Array.CreateInstance(elementType, count);
-        for (int i = 0; i < count; i++)
+        for (int index = 0; index < count; index++)
         {
-            array.SetValue(Read(elementType), i);
+            array.SetValue(Read(elementType), index);
         }
 
         return array;
     }
 
-    private T ReadStructOrClass<T>(Type t)
+    private T ReadStructOrClass<T>(Type type)
     {
-        // Create instance of T
-        T v = Activator.CreateInstance<T>();
+        object instance = Activator.CreateInstance(type);
+        PacketMemberMap members = GetMembersForStructOrClass(type);
 
-        // Get and order public instance fields
-        IOrderedEnumerable<FieldInfo> fields = t
-            .GetFields(BindingFlags.Public | BindingFlags.Instance)
-            .OrderBy(field => field.MetadataToken);
-
-        // Set field values
-        foreach (FieldInfo f in fields)
+        foreach (FieldInfo field in members.Fields)
         {
-            f.SetValue(v, Read(f.FieldType));
+            field.SetValue(instance, Read(field.FieldType));
         }
 
-        // Get and order public instance properties with setters
-        IOrderedEnumerable<PropertyInfo> properties = t
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanWrite && p.GetCustomAttributes(typeof(NetExcludeAttribute), true).Length == 0)
-            .OrderBy(property => property.MetadataToken);
-
-        // Set property values
-        foreach (PropertyInfo p in properties)
+        foreach (PropertyInfo property in members.Properties)
         {
-            p.SetValue(v, Read(p.PropertyType));
+            property.SetValue(instance, Read(property.PropertyType));
         }
 
-        // Return populated instance
-        return v;
+        return (T)instance;
     }
 
-    public object Read(Type t)
+    private static PacketMemberMap GetMembersForStructOrClass(Type type)
     {
-        // Get the Read method for compile-time type T and make it generic for runtime type t
-        MethodInfo readMethod = typeof(PacketReader)
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-            .FirstOrDefault(m => m.IsGenericMethod && m.Name == nameof(Read))
-            .MakeGenericMethod(t);
+        return StructMemberCache.GetOrAdd(type, static cachedType =>
+        {
+            FieldInfo[] fields = [.. cachedType
+                .GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .OrderBy(field => field.MetadataToken)];
 
-        // Invoke the generic Read method on this instance at runtime
-        return readMethod.Invoke(this, null);
+            PropertyInfo[] properties = [.. cachedType
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(ShouldIncludePropertyForRead)
+                .OrderBy(property => property.MetadataToken)];
+
+            return new PacketMemberMap
+            {
+                Fields = fields,
+                Properties = properties
+            };
+        });
+    }
+
+    private static bool ShouldIncludePropertyForRead(PropertyInfo property)
+    {
+        return property.CanWrite
+            && property.GetCustomAttributes(typeof(NetExcludeAttribute), true).Length == 0;
     }
 
     public void Dispose()
     {
-        _stream.Dispose();
         _reader.Dispose();
-
+        _stream.Dispose();
         GC.SuppressFinalize(this);
     }
 }

@@ -9,6 +9,7 @@ namespace Framework.Netcode.Client;
 
 public abstract class GodotClient : ENetClient
 {
+    private const string LogTag = "Client";
     private readonly ConcurrentDictionary<Type, Action<ServerPacket>> _serverPacketHandlers = new();
 
     protected void RegisterPacketHandler<TPacket>(Action<TPacket> handler)
@@ -19,7 +20,7 @@ public abstract class GodotClient : ENetClient
             throw new ArgumentNullException(nameof(handler));
         }
 
-        _serverPacketHandlers[typeof(TPacket)] = (packet) => handler((TPacket)packet);
+        _serverPacketHandlers[typeof(TPacket)] = packet => handler((TPacket)packet);
     }
 
     /// <summary>
@@ -44,25 +45,28 @@ public abstract class GodotClient : ENetClient
 
     /// <summary>
     /// <para>
-    /// A thread safe way to connect to the server. IP can be set to "127.0.0.1" for 
-    /// localhost and port can be set to something like 25565.
+    /// Thread-safe connect entrypoint. IP can be set to "127.0.0.1" for localhost and
+    /// port can be set to values such as 25565.
     /// </para>
-    /// 
+    ///
     /// <para>
-    /// Options contains settings for enabling certain logging features and ignored 
-    /// packets are packets that do not get logged to the console.
+    /// Options contains logging controls. Ignored packets skip logging output.
     /// </para>
     /// </summary>
     public async Task Connect(string ip, ushort port, ENetOptions options = default, params Type[] ignoredPackets)
     {
+        if (IsRunning)
+        {
+            Log("Client is running already");
+            return;
+        }
+
         Options = options ?? new ENetOptions();
-
-        NotifyClientStarting();
         InitIgnoredPackets(ignoredPackets);
+        NotifyClientStarting();
 
-        Interlocked.Exchange(ref _running, 1);
         CTS = new CancellationTokenSource();
-        
+
         try
         {
             await Task.Factory.StartNew(
@@ -75,9 +79,10 @@ public abstract class GodotClient : ENetClient
         {
             // Expected when stopping the client.
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            GameFramework.Logger.LogErr(e, "Client");
+            Interlocked.Exchange(ref _running, 0);
+            GameFramework.Logger.LogErr(exception, LogTag);
         }
     }
 
@@ -96,11 +101,15 @@ public abstract class GodotClient : ENetClient
     }
 
     /// <summary>
-    /// Send a packet to the server. Packets are defined to be reliable by default. This
-    /// function is thread safe.
+    /// Sends a packet to the server. Packets are reliable by default. Thread safe.
     /// </summary>
     public void Send(ClientPacket packet)
     {
+        if (packet == null)
+        {
+            throw new ArgumentNullException(nameof(packet));
+        }
+
         if (!IsConnected)
         {
             Log($"Can not send packet '{packet.GetType()}' because client is not connected to the server");
@@ -113,7 +122,7 @@ public abstract class GodotClient : ENetClient
     }
 
     /// <summary>
-    /// This function should be called in the _PhysicsProcess in the Godot thread. 
+    /// Call this in <c>_PhysicsProcess</c> (or equivalent) on the Godot main thread.
     /// </summary>
     public void HandlePackets()
     {
@@ -126,25 +135,25 @@ public abstract class GodotClient : ENetClient
         while (GodotPackets.TryDequeue(out PacketData packetData))
         {
             PacketReader packetReader = packetData.PacketReader;
-            ServerPacket serverPacket = packetData.HandlePacket;
-            Type type = packetData.Type;
+            ServerPacket packet = packetData.HandlePacket;
+            Type packetType = packetData.Type;
 
             try
             {
-                serverPacket.Read(packetReader);
+                packet.Read(packetReader);
 
-                if (!_serverPacketHandlers.TryGetValue(type, out Action<ServerPacket> handler))
+                if (!_serverPacketHandlers.TryGetValue(packetType, out Action<ServerPacket> handler))
                 {
-                    Log($"No handler registered for server packet {type.Name} (Ignoring)");
+                    Log($"No handler registered for server packet {packetType.Name} (Ignoring)");
                     continue;
                 }
 
-                handler(serverPacket);
-                LogReceivedPacket(type, serverPacket);
+                handler(packet);
+                LogReceivedPacket(packetType, packet);
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                GameFramework.Logger.LogErr(e, "Client");
+                GameFramework.Logger.LogErr(exception, LogTag);
             }
             finally
             {
@@ -153,50 +162,53 @@ public abstract class GodotClient : ENetClient
         }
     }
 
-    private void LogReceivedPacket(Type type, ServerPacket packet)
-    {
-        if (!Options.PrintPacketReceived || IgnoredPackets.Contains(type))
-            return;
-
-        string packetData = Options.PrintPacketData ? $"\n{packet.ToFormattedString()}" : string.Empty;
-        Log($"Received packet: {type.Name}{packetData}");
-    }
-
     private void ProcessGodotCommands()
     {
-        while (GodotCmdsInternal.TryDequeue(out Cmd<GodotOpcode> cmd))
+        while (GodotCmdsInternal.TryDequeue(out Cmd<GodotOpcode> command))
         {
-            GodotOpcode opcode = cmd.Opcode;
-
-            switch (opcode)
+            switch (command.Opcode)
             {
                 case GodotOpcode.Connected:
-                    TryInvoke(() => Connected?.Invoke(), "Client");
+                    TryInvoke(() => Connected?.Invoke());
                     break;
 
                 case GodotOpcode.Disconnected:
-                {
-                    DisconnectOpcode disconnectOpcode = (DisconnectOpcode)cmd.Data[0];
-                    TryInvoke(() => Disconnected?.Invoke(disconnectOpcode), "Client");
+                    DisconnectOpcode disconnectOpcode = (DisconnectOpcode)command.Data[0];
+                    TryInvoke(() => Disconnected?.Invoke(disconnectOpcode));
                     break;
-                }
 
                 case GodotOpcode.Timeout:
-                    TryInvoke(() => Timedout?.Invoke(), "Client");
+                    TryInvoke(() => Timedout?.Invoke());
                     break;
             }
         }
     }
 
-    private static void TryInvoke(Action action, string tag)
+    private void LogReceivedPacket(Type packetType, ServerPacket packet)
+    {
+        if (!Options.PrintPacketReceived || IgnoredPackets.Contains(packetType))
+        {
+            return;
+        }
+
+        string packetData = string.Empty;
+        if (Options.PrintPacketData)
+        {
+            packetData = $"\n{packet.ToFormattedString()}";
+        }
+
+        Log($"Received packet: {packetType.Name}{packetData}");
+    }
+
+    private static void TryInvoke(Action action)
     {
         try
         {
             action();
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            GameFramework.Logger.LogErr(e, tag);
+            GameFramework.Logger.LogErr(exception, LogTag);
         }
     }
 }

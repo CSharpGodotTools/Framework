@@ -36,9 +36,7 @@ internal sealed class LocalPlayer
     {
         if (_node == null && _client != null)
         {
-            _node = World.CreatePlayerRect(new Color(0.2f, 0.8f, 1f));
-            _node.Name = "LocalPlayer";
-            _node.Position = _world.GetScreenCenter();
+            _node = CreateLocalPlayerNode();
             _world.AddChild(_node);
             _lastSentPosition = _node.Position;
             _sendAccumulator = 0f;
@@ -62,7 +60,7 @@ internal sealed class LocalPlayer
         if (_node != null && _client != null)
         {
             UpdateMovement(_node, deltaSeconds);
-            TrySendPosition(_node, _client, deltaSeconds);
+            TrySendPosition(_node.Position, deltaSeconds);
         }
     }
 
@@ -77,27 +75,48 @@ internal sealed class LocalPlayer
         _sendAccumulator = 0f;
     }
 
+    private ColorRect CreateLocalPlayerNode()
+    {
+        ColorRect localPlayer = World.CreatePlayerRect(new Color(0.2f, 0.8f, 1f));
+        localPlayer.Name = "LocalPlayer";
+        localPlayer.Position = _world.GetScreenCenter();
+        return localPlayer;
+    }
+
     private static void UpdateMovement(ColorRect node, float deltaSeconds)
     {
-        Vector2 input = Input.GetVector(InputActions.MoveLeft, InputActions.MoveRight, InputActions.MoveUp, InputActions.MoveDown);
-        if (input != Vector2.Zero)
+        Vector2 inputDirection = Input.GetVector(
+            InputActions.MoveLeft,
+            InputActions.MoveRight,
+            InputActions.MoveUp,
+            InputActions.MoveDown);
+
+        if (inputDirection != Vector2.Zero)
         {
-            node.Position += input * MoveSpeed * deltaSeconds;
+            node.Position += inputDirection * MoveSpeed * deltaSeconds;
         }
     }
 
-    private void TrySendPosition(ColorRect node, GameClient client, float deltaSeconds)
+    private void TrySendPosition(Vector2 position, float deltaSeconds)
     {
         _sendAccumulator += deltaSeconds;
-        if (_sendAccumulator >= SendIntervalSeconds)
+        if (_sendAccumulator < SendIntervalSeconds)
         {
-            Vector2 position = node.Position;
-            if ((position - _lastSentPosition).LengthSquared() >= SendEpsilonSq)
-            {
-                _sendAccumulator = 0f;
-                _lastSentPosition = position;
-                client.SendPosition(position);
-            }
+            return;
         }
+
+        if (!HasSignificantMovement(position))
+        {
+            return;
+        }
+
+        _sendAccumulator = 0f;
+        _lastSentPosition = position;
+        _client.SendPosition(position);
+    }
+
+    private bool HasSignificantMovement(Vector2 position)
+    {
+        return (position - _lastSentPosition).LengthSquared() >= SendEpsilonSq;
     }
 }
