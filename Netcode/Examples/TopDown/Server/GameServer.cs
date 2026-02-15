@@ -1,17 +1,18 @@
 using ENet;
 using Framework.Netcode.Server;
 using Godot;
-using System.Diagnostics;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Framework.Netcode.Examples.Topdown;
 
 public partial class GameServer : GodotServer
 {
-    private const int BroadcastIntervalMs = 50;
+    private const int PositionBroadcastIntervalMs = 50;
 
+    private readonly HashSet<uint> _players = [];
     private readonly Dictionary<uint, Vector2> _positions = [];
-    private long _lastBroadcastTicks;
+    private long _lastPositionBroadcastTicks;
 
     public GameServer()
     {
@@ -28,12 +29,7 @@ public partial class GameServer : GodotServer
     {
         if (packet.Joined)
         {
-            // Tell the joining peer their server-assigned id first.
-            Send(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = true }, peer);
-            // Inform everyone else about the new peer.
-            Broadcast(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = false }, peer);
-            SendExistingPlayersTo(peer);
-            SendPositionsSnapshotTo(peer);
+            AddPlayer(peer);
             return;
         }
 
@@ -42,39 +38,55 @@ public partial class GameServer : GodotServer
 
     private void OnPlayerPosition(CPacketPlayerPosition packet, Peer peer)
     {
-        _positions[peer.ID] = packet.Position;
-        BroadcastPositions(excludePeer: peer);
-    }
-
-    private void RemovePlayer(uint id)
-    {
-        if (!_positions.Remove(id))
+        if (!_players.Contains(peer.ID))
         {
             return;
         }
 
+        _positions[peer.ID] = packet.Position;
+        BroadcastPositions(excludePeer: peer);
+    }
+
+    private void AddPlayer(Peer peer)
+    {
+        if (!_players.Add(peer.ID))
+        {
+            return;
+        }
+
+        Send(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = true }, peer);
+        Broadcast(new SPacketPlayerJoinedLeaved { Id = peer.ID, Joined = true, IsLocal = false }, peer);
+        SendExistingPlayersTo(peer);
+        SendPositionsSnapshotTo(peer);
+    }
+
+    private void RemovePlayer(uint id)
+    {
+        if (!_players.Remove(id))
+        {
+            return;
+        }
+
+        _positions.Remove(id);
         Broadcast(new SPacketPlayerJoinedLeaved { Id = id, Joined = false });
         BroadcastPositions(force: true);
     }
 
     private void BroadcastPositions(bool force = false, Peer? excludePeer = null)
     {
-        long now = Stopwatch.GetTimestamp();
-        double elapsedMs = (now - _lastBroadcastTicks) * 1000.0 / Stopwatch.Frequency;
-        if (!force && elapsedMs < BroadcastIntervalMs)
+        if (!CanBroadcastPositions(PositionBroadcastIntervalMs, force))
         {
             return;
         }
 
-        _lastBroadcastTicks = now;
         SPacketPlayerPositions packet = new()
         {
             Positions = new Dictionary<uint, Vector2>(_positions)
         };
 
-        if (excludePeer is { } peer)
+        if (excludePeer is { } excludedPeer)
         {
-            Broadcast(packet, peer);
+            Broadcast(packet, excludedPeer);
         }
         else
         {
@@ -82,9 +94,39 @@ public partial class GameServer : GodotServer
         }
     }
 
+    private bool CanBroadcastPositions(int intervalMs, bool force)
+    {
+        if (intervalMs <= 0)
+        {
+            return true;
+        }
+
+        long now = Stopwatch.GetTimestamp();
+        if (force)
+        {
+            _lastPositionBroadcastTicks = now;
+            return true;
+        }
+
+        if (_lastPositionBroadcastTicks == 0)
+        {
+            _lastPositionBroadcastTicks = now;
+            return true;
+        }
+
+        long intervalTicks = (long)(intervalMs * (double)Stopwatch.Frequency / 1000.0);
+        if (now - _lastPositionBroadcastTicks < intervalTicks)
+        {
+            return false;
+        }
+
+        _lastPositionBroadcastTicks = now;
+        return true;
+    }
+
     private void SendExistingPlayersTo(Peer peer)
     {
-        foreach (uint id in _positions.Keys)
+        foreach (uint id in _players)
         {
             if (id == peer.ID)
             {

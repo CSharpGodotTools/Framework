@@ -34,65 +34,70 @@ internal sealed class LocalPlayer
 
     public void EnsureLocalPlayer()
     {
-        if (_node != null || _client == null)
-            return;
-
-        _node = World.CreatePlayerRect(new Color(0.2f, 0.8f, 1f));
-        _node.Name = "LocalPlayer";
-        _node.Position = _world.GetScreenCenter();
-        _world.AddChild(_node);
-        _lastSentPosition = _node.Position;
-        _sendAccumulator = 0f;
+        if (_node == null && _client != null)
+        {
+            _node = World.CreatePlayerRect(new Color(0.2f, 0.8f, 1f));
+            _node.Name = "LocalPlayer";
+            _node.Position = _world.GetScreenCenter();
+            _world.AddChild(_node);
+            _lastSentPosition = _node.Position;
+            _sendAccumulator = 0f;
+        }
     }
 
     public void ResetAtCenter()
     {
-        if (_node == null || _client == null)
-            return;
-
-        Vector2 center = _world.GetScreenCenter();
-        _node.Position = center;
-        _lastSentPosition = center;
-        _sendAccumulator = 0f;
-        _client.SendPosition(center);
+        if (_node != null && _client != null)
+        {
+            Vector2 center = _world.GetScreenCenter();
+            _node.Position = center;
+            _lastSentPosition = center;
+            _sendAccumulator = 0f;
+            _client.SendPosition(center);
+        }
     }
 
     public void Tick(float deltaSeconds)
     {
-        if (_node == null || _client == null)
-            return;
-
-        UpdateMovement(deltaSeconds);
-        TrySendPosition(deltaSeconds);
+        if (_node != null && _client != null)
+        {
+            UpdateMovement(_node, deltaSeconds);
+            TrySendPosition(_node, _client, deltaSeconds);
+        }
     }
 
     public void Clear()
     {
-        _node?.QueueFree();
-        _node = null;
-    }
-
-    private void UpdateMovement(float deltaSeconds)
-    {
-        Vector2 input = Input.GetVector(InputActions.MoveLeft, InputActions.MoveRight, InputActions.MoveUp, InputActions.MoveDown);
-        if (input == Vector2.Zero)
-            return;
-
-        _node.Position += input * MoveSpeed * deltaSeconds;
-    }
-
-    private void TrySendPosition(float deltaSeconds)
-    {
-        _sendAccumulator += deltaSeconds;
-        if (_sendAccumulator < SendIntervalSeconds)
-            return;
-
-        Vector2 position = _node.Position;
-        if ((position - _lastSentPosition).LengthSquared() < SendEpsilonSq)
-            return;
+        if (_node != null)
+        {
+            _node.QueueFree();
+            _node = null;
+        }
 
         _sendAccumulator = 0f;
-        _lastSentPosition = position;
-        _client.SendPosition(position);
+    }
+
+    private static void UpdateMovement(ColorRect node, float deltaSeconds)
+    {
+        Vector2 input = Input.GetVector(InputActions.MoveLeft, InputActions.MoveRight, InputActions.MoveUp, InputActions.MoveDown);
+        if (input != Vector2.Zero)
+        {
+            node.Position += input * MoveSpeed * deltaSeconds;
+        }
+    }
+
+    private void TrySendPosition(ColorRect node, GameClient client, float deltaSeconds)
+    {
+        _sendAccumulator += deltaSeconds;
+        if (_sendAccumulator >= SendIntervalSeconds)
+        {
+            Vector2 position = node.Position;
+            if ((position - _lastSentPosition).LengthSquared() >= SendEpsilonSq)
+            {
+                _sendAccumulator = 0f;
+                _lastSentPosition = position;
+                client.SendPosition(position);
+            }
+        }
     }
 }

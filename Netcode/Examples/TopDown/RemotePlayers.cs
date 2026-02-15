@@ -18,17 +18,17 @@ internal sealed class RemotePlayers
 
     public void EnsureRemote(uint id)
     {
-        EnsurePlayer(id);
+        EnsurePlayerNode(id);
     }
 
     public void Remove(uint id)
     {
-        if (_players.TryGetValue(id, out ColorRect rect))
+        if (_players.Remove(id, out ColorRect rect))
         {
             rect.QueueFree();
-            _players.Remove(id);
-            _targets.Remove(id);
         }
+
+        _targets.Remove(id);
     }
 
     public void ClearAll()
@@ -46,9 +46,11 @@ internal sealed class RemotePlayers
     {
         foreach (KeyValuePair<uint, Vector2> kvp in positions)
         {
-            ColorRect rect = EnsurePlayer(kvp.Key);
+            ColorRect rect = EnsurePlayerNode(kvp.Key);
             if (!_targets.ContainsKey(kvp.Key))
+            {
                 rect.Position = kvp.Value;
+            }
 
             _targets[kvp.Key] = kvp.Value;
         }
@@ -56,28 +58,31 @@ internal sealed class RemotePlayers
 
     public void Tick(float deltaSeconds)
     {
-        if (_targets.Count == 0)
-            return;
-
-        float t = 1f - Mathf.Exp(-RemoteLerpSpeed * deltaSeconds);
-
-        foreach (KeyValuePair<uint, Vector2> kvp in _targets)
+        if (_targets.Count > 0)
         {
-            if (_players.TryGetValue(kvp.Key, out ColorRect rect))
-                rect.Position = rect.Position.Lerp(kvp.Value, t);
+            float interpolation = 1f - Mathf.Exp(-RemoteLerpSpeed * deltaSeconds);
+
+            foreach (KeyValuePair<uint, Vector2> kvp in _targets)
+            {
+                if (_players.TryGetValue(kvp.Key, out ColorRect rect))
+                {
+                    rect.Position = rect.Position.Lerp(kvp.Value, interpolation);
+                }
+            }
         }
     }
 
-    private ColorRect EnsurePlayer(uint id)
+    private ColorRect EnsurePlayerNode(uint id)
     {
-        if (_players.TryGetValue(id, out ColorRect rect))
-            return rect;
+        if (!_players.TryGetValue(id, out ColorRect rect))
+        {
+            rect = World.CreatePlayerRect(new Color(1f, 0.55f, 0.2f));
+            rect.Name = $"Player_{id}";
+            rect.Position = _world.GetScreenCenter();
+            _players[id] = rect;
+            _world.AddChild(rect);
+        }
 
-        rect = World.CreatePlayerRect(new Color(1f, 0.55f, 0.2f));
-        rect.Name = $"Player_{id}";
-        rect.Position = _world.GetScreenCenter();
-        _players[id] = rect;
-        _world.AddChild(rect);
         return rect;
     }
 }

@@ -18,118 +18,150 @@ public partial class World : Node2D
     public override void _Ready()
     {
         _netControlPanel = GetNode<NetControlPanel>("CanvasLayer/Multiplayer");
-        _netControlPanel.Net.ClientCreated += OnClientCreated;
-        _netControlPanel.Net.ClientDestroyed += OnClientDestroyed;
-        SetProcess(false);
         _localPlayer = new LocalPlayer(this);
         _remotePlayers = new RemotePlayers(this);
         _stressTest = new WorldStressTest(this);
+
+        _netControlPanel.Net.ClientCreated += OnClientCreated;
+        _netControlPanel.Net.ClientDestroyed += OnClientDestroyed;
+        RefreshProcessingState();
     }
 
     public override void _ExitTree()
     {
-        if (_netControlPanel?.Net != null)
+        if (_netControlPanel != null && _netControlPanel.Net != null)
         {
             _netControlPanel.Net.ClientCreated -= OnClientCreated;
             _netControlPanel.Net.ClientDestroyed -= OnClientDestroyed;
         }
 
-        _stressTest?.Stop();
-        _stressTest = null;
-        _localPlayer = null;
-        _remotePlayers = null;
+        if (_stressTest != null)
+        {
+            _stressTest.Stop();
+        }
+
         DetachClient();
+        SetProcess(false);
     }
 
     public override void _Process(double delta)
     {
-        float deltaSeconds = (float)delta;
-        _localPlayer?.Tick(deltaSeconds);
-        _remotePlayers?.Tick(deltaSeconds);
-        _stressTest?.Tick(deltaSeconds);
+        if (_localPlayer != null && _remotePlayers != null && _stressTest != null)
+        {
+            float deltaSeconds = (float)delta;
+            _localPlayer.Tick(deltaSeconds);
+            _remotePlayers.Tick(deltaSeconds);
+            _stressTest.Tick(deltaSeconds);
+        }
     }
 
     private void OnClientCreated(GodotClient client)
     {
-        if (client is not GameClient gameClient)
-            return;
+        if (client is GameClient gameClient)
+        {
+            AttachClient(gameClient);
+        }
+    }
 
-        _client = gameClient;
+    private void OnClientDestroyed(GodotClient client)
+    {
+        if (client is GameClient gameClient && gameClient == _client)
+        {
+            DetachClient();
+        }
+    }
+
+    private void AttachClient(GameClient client)
+    {
+        DetachClient();
+
+        _client = client;
         _client.Connected += OnClientConnected;
         _client.Disconnected += OnClientDisconnected;
         _client.LocalPlayerReady += OnLocalPlayerReady;
         _client.RemotePlayerJoined += OnRemotePlayerJoined;
         _client.RemotePlayerLeft += OnRemotePlayerLeft;
         _client.RemotePositionsUpdated += OnRemotePositionsUpdated;
-        _localPlayer?.AttachClient(gameClient);
-    }
 
-    private void OnClientDestroyed(GodotClient client)
-    {
-        if (client is not GameClient gameClient)
-            return;
-
-        gameClient.Connected -= OnClientConnected;
-        gameClient.Disconnected -= OnClientDisconnected;
-        gameClient.LocalPlayerReady -= OnLocalPlayerReady;
-        gameClient.RemotePlayerJoined -= OnRemotePlayerJoined;
-        gameClient.RemotePlayerLeft -= OnRemotePlayerLeft;
-        gameClient.RemotePositionsUpdated -= OnRemotePositionsUpdated;
-
-        DetachClient();
+        _localPlayer.AttachClient(client);
+        RefreshProcessingState();
     }
 
     private void OnClientConnected()
     {
-        _localPlayer?.EnsureLocalPlayer();
-        _localPlayer?.ResetAtCenter();
-        TryEnableProcessing();
+        _localPlayer.EnsureLocalPlayer();
+        _localPlayer.ResetAtCenter();
+        RefreshProcessingState();
     }
 
     private void OnClientDisconnected(DisconnectOpcode _)
     {
         ClearPlayers();
+        RefreshProcessingState();
     }
 
     private void OnLocalPlayerReady(uint _)
     {
-        _localPlayer?.EnsureLocalPlayer();
-        TryEnableProcessing();
+        _localPlayer.EnsureLocalPlayer();
+        RefreshProcessingState();
     }
 
     private void OnRemotePlayerJoined(uint id)
     {
-        _remotePlayers?.EnsureRemote(id);
+        _remotePlayers.EnsureRemote(id);
     }
 
     private void OnRemotePlayerLeft(uint id)
     {
-        _remotePlayers?.Remove(id);
+        _remotePlayers.Remove(id);
     }
 
     private void OnRemotePositionsUpdated(IReadOnlyDictionary<uint, Vector2> positions)
     {
-        _remotePlayers?.UpdateTargets(positions);
+        _remotePlayers.UpdateTargets(positions);
     }
 
     private void DetachClient()
     {
-        _client = null;
-        _localPlayer?.DetachClient();
-        if (_stressTest == null || !_stressTest.IsRunning)
-            SetProcess(false);
+        if (_client != null)
+        {
+            _client.Connected -= OnClientConnected;
+            _client.Disconnected -= OnClientDisconnected;
+            _client.LocalPlayerReady -= OnLocalPlayerReady;
+            _client.RemotePlayerJoined -= OnRemotePlayerJoined;
+            _client.RemotePlayerLeft -= OnRemotePlayerLeft;
+            _client.RemotePositionsUpdated -= OnRemotePositionsUpdated;
+            _client = null;
+        }
+
+        if (_localPlayer != null)
+        {
+            _localPlayer.DetachClient();
+        }
+
         ClearPlayers();
+        RefreshProcessingState();
     }
 
     internal void ClearRemotePlayers()
     {
-        _remotePlayers?.ClearAll();
+        if (_remotePlayers != null)
+        {
+            _remotePlayers.ClearAll();
+        }
     }
 
     private void ClearPlayers()
     {
-        _localPlayer?.Clear();
-        _remotePlayers?.ClearAll();
+        if (_localPlayer != null)
+        {
+            _localPlayer.Clear();
+        }
+
+        if (_remotePlayers != null)
+        {
+            _remotePlayers.ClearAll();
+        }
     }
 
     public static ColorRect CreatePlayerRect(Color color)
@@ -146,14 +178,15 @@ public partial class World : Node2D
         return GetViewportRect().Size * 0.5f;
     }
 
-    private void TryEnableProcessing()
+    private void RefreshProcessingState()
     {
-        if (_client != null && _client.IsConnected && _localPlayer != null && _localPlayer.HasLocalPlayer && _client.HasLocalId)
-            SetProcess(true);
-    }
+        bool hasReadyNetworkPlayer = _client != null
+            && _client.IsConnected
+            && _client.HasLocalId
+            && _localPlayer != null
+            && _localPlayer.HasLocalPlayer;
 
-    private void StartStressTest()
-    {
-        _stressTest?.Start();
+        bool shouldProcess = (_stressTest != null && _stressTest.IsRunning) || hasReadyNetworkPlayer;
+        SetProcess(shouldProcess);
     }
 }
