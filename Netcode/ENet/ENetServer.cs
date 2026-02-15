@@ -30,10 +30,7 @@ public abstract class ENetServer : ENetLow
     protected void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler)
         where TPacket : ClientPacket
     {
-        if (handler == null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         _clientPacketHandlers[typeof(TPacket)] = (packet, peer) => handler((TPacket)packet, peer);
     }
@@ -309,7 +306,7 @@ public abstract class ENetServer : ENetLow
         }
     }
 
-    private bool TryInvokePacketHandler(Action<ClientPacket, Peer> handler, ClientPacket packet, Peer peer)
+    private static bool TryInvokePacketHandler(Action<ClientPacket, Peer> handler, ClientPacket packet, Peer peer)
     {
         try
         {
@@ -486,9 +483,9 @@ public abstract class ENetServer : ENetLow
 
             logEntries.Sort(static (left, right) => left.Tick.CompareTo(right.Tick));
 
-            foreach ((long Tick, Action LogAction) entry in logEntries)
+            foreach ((long Tick, Action LogAction) in logEntries)
             {
-                entry.LogAction();
+                LogAction();
             }
         }
 

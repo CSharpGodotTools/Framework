@@ -10,7 +10,7 @@ public class Net
 {
     private const int ShutdownPollIntervalMs = 50;
 
-    private static readonly ENetOptions DefaultClientOptions = new()
+    private static readonly ENetOptions _defaultClientOptions = new()
     {
         PrintPacketByteSize = false,
         PrintPacketData = false,
@@ -36,15 +36,8 @@ public class Net
 
     public Net(IGameClientFactory clientFactory, IGameServerFactory serverFactory)
     {
-        if (clientFactory == null)
-        {
-            throw new ArgumentNullException(nameof(clientFactory));
-        }
-
-        if (serverFactory == null)
-        {
-            throw new ArgumentNullException(nameof(serverFactory));
-        }
+        ArgumentNullException.ThrowIfNull(clientFactory);
+        ArgumentNullException.ThrowIfNull(serverFactory);
 
         _clientFactory = clientFactory;
         _serverFactory = serverFactory;
@@ -114,7 +107,7 @@ public class Net
         ClientDestroyed?.Invoke(Client);
     }
 
-    private bool TryInitializeEnet()
+    private static bool TryInitializeEnet()
     {
         try
         {
@@ -170,11 +163,11 @@ public class Net
     {
         return new ENetOptions
         {
-            PrintPacketByteSize = DefaultClientOptions.PrintPacketByteSize,
-            PrintPacketData = DefaultClientOptions.PrintPacketData,
-            PrintPacketReceived = DefaultClientOptions.PrintPacketReceived,
-            PrintPacketSent = DefaultClientOptions.PrintPacketSent,
-            ShowLogTimestamps = DefaultClientOptions.ShowLogTimestamps
+            PrintPacketByteSize = _defaultClientOptions.PrintPacketByteSize,
+            PrintPacketData = _defaultClientOptions.PrintPacketData,
+            PrintPacketReceived = _defaultClientOptions.PrintPacketReceived,
+            PrintPacketSent = _defaultClientOptions.PrintPacketSent,
+            ShowLogTimestamps = _defaultClientOptions.ShowLogTimestamps
         };
     }
 

@@ -34,10 +34,7 @@ public partial class World : Node2D
             _netControlPanel.Net.ClientDestroyed -= OnClientDestroyed;
         }
 
-        if (_stressTest != null)
-        {
-            _stressTest.Dispose();
-        }
+        _stressTest?.Dispose();
 
         DetachClient();
         SetProcess(false);
@@ -70,10 +67,7 @@ public partial class World : Node2D
 
     internal void ClearRemotePlayers()
     {
-        if (_remotePlayers != null)
-        {
-            _remotePlayers.ClearAll();
-        }
+        _remotePlayers?.ClearAll();
     }
 
     private void OnClientCreated(GodotClient client)
@@ -121,10 +115,7 @@ public partial class World : Node2D
             _client = null;
         }
 
-        if (_localPlayer != null)
-        {
-            _localPlayer.DetachClient();
-        }
+        _localPlayer?.DetachClient();
 
         ClearPlayers();
         RefreshProcessingState();
@@ -166,15 +157,8 @@ public partial class World : Node2D
 
     private void ClearPlayers()
     {
-        if (_localPlayer != null)
-        {
-            _localPlayer.Clear();
-        }
-
-        if (_remotePlayers != null)
-        {
-            _remotePlayers.ClearAll();
-        }
+        _localPlayer?.Clear();
+        _remotePlayers?.ClearAll();
     }
 
     private void RefreshProcessingState()

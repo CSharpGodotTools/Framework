@@ -17,7 +17,7 @@ public class PacketWriter : IDisposable
         public PropertyInfo[] Properties { get; init; }
     }
 
-    private static readonly ConcurrentDictionary<Type, PacketMemberMap> StructMemberCache = new();
+    private static readonly ConcurrentDictionary<Type, PacketMemberMap> _structMemberCache = new();
 
     public MemoryStream Stream { get; } = new();
 
@@ -200,7 +200,7 @@ public class PacketWriter : IDisposable
 
     private static PacketMemberMap GetMembersForStructOrClass(Type type)
     {
-        return StructMemberCache.GetOrAdd(type, static cachedType =>
+        return _structMemberCache.GetOrAdd(type, static cachedType =>
         {
             FieldInfo[] fields = [.. cachedType
                 .GetFields(BindingFlags.Public | BindingFlags.Instance)

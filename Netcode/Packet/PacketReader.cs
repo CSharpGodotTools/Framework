@@ -17,11 +17,11 @@ public class PacketReader : IDisposable
         public PropertyInfo[] Properties { get; init; }
     }
 
-    private static readonly MethodInfo GenericReadMethod = typeof(PacketReader)
+    private static readonly MethodInfo _genericReadMethod = typeof(PacketReader)
         .GetMethods(BindingFlags.Instance | BindingFlags.Public)
         .First(method => method.IsGenericMethod && method.Name == nameof(Read));
 
-    private static readonly ConcurrentDictionary<Type, PacketMemberMap> StructMemberCache = new();
+    private static readonly ConcurrentDictionary<Type, PacketMemberMap> _structMemberCache = new();
 
     private readonly MemoryStream _stream;
     private readonly BinaryReader _reader;
@@ -73,12 +73,9 @@ public class PacketReader : IDisposable
     /// </summary>
     public object Read(Type type)
     {
-        if (type == null)
-        {
-            throw new ArgumentNullException(nameof(type));
-        }
+        ArgumentNullException.ThrowIfNull(type);
 
-        MethodInfo readMethod = GenericReadMethod.MakeGenericMethod(type);
+        MethodInfo readMethod = _genericReadMethod.MakeGenericMethod(type);
         return readMethod.Invoke(this, null);
     }
 
@@ -233,7 +230,7 @@ public class PacketReader : IDisposable
 
     private static PacketMemberMap GetMembersForStructOrClass(Type type)
     {
-        return StructMemberCache.GetOrAdd(type, static cachedType =>
+        return _structMemberCache.GetOrAdd(type, static cachedType =>
         {
             FieldInfo[] fields = [.. cachedType
                 .GetFields(BindingFlags.Public | BindingFlags.Instance)

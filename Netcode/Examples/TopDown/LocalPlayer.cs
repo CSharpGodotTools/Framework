@@ -66,11 +66,8 @@ internal sealed class LocalPlayer
 
     public void Clear()
     {
-        if (_node != null)
-        {
-            _node.QueueFree();
-            _node = null;
-        }
+        _node?.QueueFree();
+        _node = null;
 
         _sendAccumulator = 0f;
     }

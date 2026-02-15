@@ -15,10 +15,7 @@ public abstract class GodotClient : ENetClient
     protected void RegisterPacketHandler<TPacket>(Action<TPacket> handler)
         where TPacket : ServerPacket
     {
-        if (handler == null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         _serverPacketHandlers[typeof(TPacket)] = packet => handler((TPacket)packet);
     }
@@ -105,10 +102,7 @@ public abstract class GodotClient : ENetClient
     /// </summary>
     public void Send(ClientPacket packet)
     {
-        if (packet == null)
-        {
-            throw new ArgumentNullException(nameof(packet));
-        }
+        ArgumentNullException.ThrowIfNull(packet);
 
         if (!IsConnected)
         {

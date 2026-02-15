@@ -286,17 +286,17 @@ public abstract class ENetClient : ENetLow
         return address;
     }
 
-    protected void NotifyClientStarting()
+    protected static void NotifyClientStarting()
     {
         // Intentionally no-op to avoid noisy client lifecycle logs.
     }
 
-    private void NotifyClientStopped()
+    private static void NotifyClientStopped()
     {
         // Intentionally no-op to avoid noisy client lifecycle logs.
     }
 
-    private void TryInvoke(Action action)
+    private static void TryInvoke(Action action)
     {
         try
         {
@@ -417,9 +417,9 @@ public abstract class ENetClient : ENetLow
 
             logEntries.Sort(static (left, right) => left.Tick.CompareTo(right.Tick));
 
-            foreach ((long Tick, Action LogAction) entry in logEntries)
+            foreach ((long Tick, Action LogAction) in logEntries)
             {
-                entry.LogAction();
+                LogAction();
             }
         }
 

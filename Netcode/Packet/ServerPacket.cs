@@ -30,10 +30,7 @@ public abstract class ServerPacket : GamePacket
 
     public void Broadcast(Host host)
     {
-        if (host == null)
-        {
-            throw new ArgumentNullException(nameof(host));
-        }
+        ArgumentNullException.ThrowIfNull(host);
 
         Packet enetPacket = CreateENetPacket();
         Peer[] peers = Peers ?? [];

@@ -34,10 +34,7 @@ public abstract class GamePacket
 
     public void SetPeers(Peer[] peers)
     {
-        if (peers == null)
-        {
-            throw new ArgumentNullException(nameof(peers));
-        }
+        ArgumentNullException.ThrowIfNull(peers);
 
         Peers = [.. peers];
     }

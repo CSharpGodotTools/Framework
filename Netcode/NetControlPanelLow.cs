@@ -57,7 +57,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         Net = null;
     }
 
-    private Net CreateNet()
+    private static Net CreateNet()
     {
         ServerFactory serverFactory = new(() => new TGameServer());
         ClientFactory clientFactory = new(() => new TGameClient());

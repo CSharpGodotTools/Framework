@@ -93,10 +93,7 @@ public abstract class GodotServer : ENetServer
     /// </summary>
     public void Send(ServerPacket packet, Peer peer)
     {
-        if (packet == null)
-        {
-            throw new ArgumentNullException(nameof(packet));
-        }
+        ArgumentNullException.ThrowIfNull(packet);
 
         packet.Write();
         LogSend(packet, $"to client {peer.ID}");
@@ -111,10 +108,7 @@ public abstract class GodotServer : ENetServer
     /// </summary>
     public void Broadcast(ServerPacket packet, params Peer[] clients)
     {
-        if (packet == null)
-        {
-            throw new ArgumentNullException(nameof(packet));
-        }
+        ArgumentNullException.ThrowIfNull(packet);
 
         Peer[] peers = clients ?? [];
         packet.Write();

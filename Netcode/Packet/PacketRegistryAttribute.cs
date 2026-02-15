@@ -15,11 +15,7 @@ public sealed class PacketRegistryAttribute : System.Attribute
 
     public PacketRegistryAttribute(System.Type opcodeType)
     {
-        if (opcodeType == null)
-        {
-            throw new System.ArgumentNullException(nameof(opcodeType));
-        }
-
+        System.ArgumentNullException.ThrowIfNull(opcodeType);
         OpcodeType = opcodeType;
     }
 }

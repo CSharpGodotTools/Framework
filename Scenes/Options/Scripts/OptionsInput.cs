@@ -125,7 +125,7 @@ public partial class OptionsInput : IDisposable
             _suppressedAction = info.Action;
 
             _view.ShowListening(info);
-            _store.SuppressAction(info.Action);
+            HotkeyStore.SuppressAction(info.Action);
         }
 
         public void HandleInput(InputEvent @event)
@@ -166,7 +166,7 @@ public partial class OptionsInput : IDisposable
             StringName action = _current.Action;
 
             _store.RemoveEvent(action, _current.InputEvent);
-            _view.RemoveButton(_current);
+            HotkeyListView.RemoveButton(_current);
             _view.FocusPlusButton(action);
 
             Clear();
@@ -175,9 +175,9 @@ public partial class OptionsInput : IDisposable
         private void CancelListening()
         {
             if (_current.IsPlus)
-                _view.RemoveButton(_current);
+                HotkeyListView.RemoveButton(_current);
             else
-                _view.RestoreListening(_current);
+                HotkeyListView.RestoreListening(_current);
 
             Clear();
         }
@@ -209,9 +209,9 @@ public partial class OptionsInput : IDisposable
         private void HandleDuplicate(StringName action)
         {
             if (_current.IsPlus)
-                _view.RemoveButton(_current);
+                HotkeyListView.RemoveButton(_current);
             else
-                _view.RestoreListening(_current);
+                HotkeyListView.RestoreListening(_current);
 
             _view.FocusPlusButton(action);
             Clear();
@@ -278,7 +278,7 @@ public partial class OptionsInput : IDisposable
             _options.ResetHotkeys();
         }
 
-        public void SuppressAction(StringName action)
+        public static void SuppressAction(StringName action)
         {
             Array<InputEvent> events = InputMap.ActionGetEvents(action);
             for (int i = 0; i < events.Count; i++)
@@ -356,7 +356,7 @@ public partial class OptionsInput : IDisposable
         private readonly string _uiPrefix;
         private readonly string _ellipsis;
 
-        private readonly System.Collections.Generic.Dictionary<StringName, HotkeyRow> _rows = new();
+        private readonly System.Collections.Generic.Dictionary<StringName, HotkeyRow> _rows = [];
 
         public event Action<HotkeyButtonInfo> HotkeyPressed;
         public event Action<HotkeyButtonInfo> PlusPressed;
@@ -411,13 +411,13 @@ public partial class OptionsInput : IDisposable
             info.Button.Disabled = true;
         }
 
-        public void RestoreListening(HotkeyButtonInfo info)
+        public static void RestoreListening(HotkeyButtonInfo info)
         {
             info.Button.Text = info.OriginalText;
             info.Button.Disabled = false;
         }
 
-        public void RemoveButton(HotkeyButtonInfo info)
+        public static void RemoveButton(HotkeyButtonInfo info)
         {
             info.Button.QueueFree();
         }
