@@ -14,6 +14,7 @@ public class AudioManager : IDisposable
     private const int   MutedVolumeNormalized = -40;    // Normalized muted volume for volume mapping.
 
     // Variables
+    private readonly RandomNumberGenerator _randomNumberGenerator = new();
     private NodePool<AudioStreamPlayer2D> _sfxPool;
     private AudioStreamPlayer _musicPlayer;
     private ResourceOptions _options;
@@ -26,6 +27,7 @@ public class AudioManager : IDisposable
     public AudioManager(AutoloadsFramework autoloads)
     {
         SetupFields(autoloads);
+        _randomNumberGenerator.Randomize();
         SetupSfxPool();
         SetupMusicPlayer();
     }
@@ -127,15 +129,13 @@ public class AudioManager : IDisposable
     /// </summary>
     private float GetRandomPitch(float min, float max)
     {
-        RandomNumberGenerator rng = new();
-        rng.Randomize();
-
-        float pitch = rng.RandfRange(min, max);
-
-        while (Mathf.Abs(pitch - _lastPitch) < RandomPitchThreshold)
+        float pitch = _randomNumberGenerator.RandfRange(min, max);
+        int attempts = 0;
+        const int maxAttempts = 8;
+        while (Mathf.Abs(pitch - _lastPitch) < RandomPitchThreshold && attempts < maxAttempts)
         {
-            rng.Randomize();
-            pitch = rng.RandfRange(min, max);
+            pitch = _randomNumberGenerator.RandfRange(min, max);
+            attempts++;
         }
 
         _lastPitch = pitch;

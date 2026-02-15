@@ -58,22 +58,19 @@ public class Logger : IDisposable
     /// </summary>
     public void Log(params object[] objects)
     {
-        if (objects == null || objects.Length == 0)
-            return; // or handle the case where no objects are provided
+        if (objects.Length == 0)
+            return;
 
         StringBuilder messageBuilder = new();
-
-        foreach (object obj in objects)
+        for (int index = 0; index < objects.Length; index++)
         {
-            messageBuilder.Append(obj);
-            messageBuilder.Append(' '); // Add a space between objects for readability
+            if (index > 0)
+                messageBuilder.Append(' ');
+
+            messageBuilder.Append(objects[index]);
         }
 
-        string message = messageBuilder.ToString().Trim(); // Remove the trailing space
-
-        LogInfo logInfo = new(LoggerOpcode.Message, new LogMessage(message));
-
-        EnqueueMessage(logInfo);
+        EnqueueMessage(new LogInfo(LoggerOpcode.Message, new LogMessage(messageBuilder.ToString())));
     }
 
     /// <summary>
@@ -194,8 +191,8 @@ public class Logger : IDisposable
     /// </summary>
     private void LogDetailed(LoggerOpcode opcode, string message, BBColor color, bool trace, string filePath, int lineNumber)
     {
-        string[] elements = filePath.Split(Path.DirectorySeparatorChar);
-        string tracePath = $"  at {elements[^1]}:{lineNumber}"; // TracePath could become for example: "at Main.cs:23"
+        string sourceFile = Path.GetFileName(filePath)!;
+        string tracePath = $"  at {sourceFile}:{lineNumber}";
 
         EnqueueMessage(new LogInfo(opcode, new LogMessageTrace(message, trace, tracePath), color));
     }

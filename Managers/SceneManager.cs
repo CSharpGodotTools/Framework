@@ -59,10 +59,6 @@ public class SceneManager
     public void ResetCurrentScene()
     {
         string sceneFilePath = _tree.CurrentScene.SceneFilePath;
-
-        string[] words = sceneFilePath.Split("/");
-        string sceneName = words[^1].Replace(".tscn", "");
-
         PreSceneChanged?.Invoke();
 
         // Wait for engine to be ready before switching scenes
@@ -75,7 +71,7 @@ public class SceneManager
         _currentScene.Free();
 
         // Load a new scene.
-        PackedScene nextScene = (PackedScene)GD.Load(rawName);
+        PackedScene nextScene = GD.Load<PackedScene>(rawName)!;
 
         // Internal the new scene.
         _currentScene = nextScene.Instantiate();

@@ -35,7 +35,7 @@ public partial class GameConsole : Node
 
         _input.TextSubmitted += OnConsoleInputEntered;
         _settingsBtn.Pressed += OnSettingsBtnPressed;
-        _settingsAutoScroll.Toggled += OnAutoScrollToggeled;
+        _settingsAutoScroll.Toggled += OnAutoScrollToggled;
 
         _mainContainer.Hide();
     }
@@ -55,7 +55,7 @@ public partial class GameConsole : Node
     {
         _input.TextSubmitted -= OnConsoleInputEntered;
         _settingsBtn.Pressed -= OnSettingsBtnPressed;
-        _settingsAutoScroll.Toggled -= OnAutoScrollToggeled;
+        _settingsAutoScroll.Toggled -= OnAutoScrollToggled;
     }
 
     // API
@@ -130,12 +130,12 @@ public partial class GameConsole : Node
 
     private bool ProcessCommand(string text)
     {
-        string[] parts = text.ToLower().Split();
+        string[] parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+            return false;
+
         string cmd = parts[0];
-
-        ConsoleCommandInfo cmdInfo = TryGetCommand(cmd);
-
-        if (cmdInfo == null)
+        if (!TryGetCommand(cmd, out ConsoleCommandInfo cmdInfo))
         {
             GameFramework.Logger.Log($"The command '{cmd}' does not exist");
             return false;
@@ -148,11 +148,10 @@ public partial class GameConsole : Node
         return true;
     }
 
-    private ConsoleCommandInfo TryGetCommand(string text)
+    private bool TryGetCommand(string text, out ConsoleCommandInfo commandInfo)
     {
-        ConsoleCommandInfo cmd = _commands.Find(IsMatchingCommand);
-
-        return cmd;
+        commandInfo = _commands.Find(IsMatchingCommand);
+        return commandInfo != null;
 
         bool IsMatchingCommand(ConsoleCommandInfo cmd)
         {
@@ -198,7 +197,7 @@ public partial class GameConsole : Node
         }
     }
 
-    private void OnAutoScrollToggeled(bool value)
+    private void OnAutoScrollToggled(bool value)
     {
         _autoScroll = value;
     }
@@ -207,6 +206,9 @@ public partial class GameConsole : Node
     {
         // case sensitivity and trailing spaces should not factor in here
         string inputToLowerTrimmed = text.Trim().ToLower();
+        if (string.IsNullOrWhiteSpace(inputToLowerTrimmed))
+            return;
+
         string[] inputArr = inputToLowerTrimmed.Split(' ');
 
         // extract command from input

@@ -24,7 +24,11 @@ public class Profiler
 
     public static void Stop(string key, int accuracy = DefaultAccuracy)
     {
-        ProfilerEntry entry = _entries[key];
+        if (!_entries.TryGetValue(key, out ProfilerEntry entry))
+        {
+            GD.PrintErr($"Profiler key '{key}' was not started.");
+            return;
+        }
 
         ulong elapsedUsec = Time.GetTicksUsec() - entry.StartTimeUsec;
         ulong elapsedMs = elapsedUsec / 1000UL;
@@ -40,7 +44,13 @@ public class Profiler
 
     public static void StopProcess(string key)
     {
-        _entries[key].Stop();
+        if (!_entries.TryGetValue(key, out ProfilerEntry entry))
+        {
+            GD.PrintErr($"Profiler key '{key}' was not started.");
+            return;
+        }
+
+        entry.Stop();
     }
 
     // Private Methods
@@ -61,6 +71,6 @@ public class Profiler
     // Dispose
     public static void Dispose()
     {
-        _entries = null;
+        _entries.Clear();
     }
 }

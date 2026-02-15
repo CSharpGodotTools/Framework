@@ -102,11 +102,8 @@ public partial class OptionsManager : IDisposable
     private void SaveOptions()
     {
         string json = JsonSerializer.Serialize(_options, _jsonOptions);
-
-        FileAccess file = FileAccess.Open(PathOptions, FileAccess.ModeFlags.Write);
-
+        using FileAccess file = FileAccess.Open(PathOptions, FileAccess.ModeFlags.Write);
         file.StoreString(json);
-        file.Close();
     }
 
     private void SaveHotkeys()
@@ -144,11 +141,8 @@ public partial class OptionsManager : IDisposable
     {
         if (FileAccess.FileExists(PathOptions))
         {
-            FileAccess file = FileAccess.Open(PathOptions, FileAccess.ModeFlags.Read);
-
-            _options = JsonSerializer.Deserialize<ResourceOptions>(file.GetAsText());
-
-            file.Close();
+            using FileAccess file = FileAccess.Open(PathOptions, FileAccess.ModeFlags.Read);
+            _options = JsonSerializer.Deserialize<ResourceOptions>(file.GetAsText())!;
         }
         else
         {
@@ -199,7 +193,7 @@ public partial class OptionsManager : IDisposable
         if (FileAccess.FileExists(PathHotkeys))
         {
             string localResPath = ProjectSettings.LocalizePath(DirectoryUtils.FindFile("res://", "ResourceHotkeys.cs"));
-            ValdiateResourceFile(PathHotkeys, localResPath);
+            ValidateResourceFile(PathHotkeys, localResPath);
             _hotkeys = GD.Load<ResourceHotkeys>(PathHotkeys);
 
             // InputMap in project settings has changed so reset all saved hotkeys
@@ -220,7 +214,7 @@ public partial class OptionsManager : IDisposable
 
     // *.tres files store the path to their script in res:// and as a result if that script is moved then the
     // path in *.tres will point to an invalid path and so this function corrects the path again.
-    private static void ValdiateResourceFile(string localUserPath, string localResPath)
+    private static void ValidateResourceFile(string localUserPath, string localResPath)
     {
         string userGlobalPath = ProjectSettings.GlobalizePath(localUserPath);
         string content = File.ReadAllText(userGlobalPath);

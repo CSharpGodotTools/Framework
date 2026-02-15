@@ -25,12 +25,11 @@ public class Services(AutoloadsFramework autoloads)
     /// <returns>The instance of the service.</returns>
     public T Get<T>()
     {
-        if (!_services.ContainsKey(typeof(T)))
-        {
-            throw new Exception($"Unable to obtain service '{typeof(T)}'");
-        }
+        Type serviceType = typeof(T);
+        if (!_services.TryGetValue(serviceType, out Service service))
+            throw new InvalidOperationException($"Unable to obtain service '{serviceType.Name}'.");
 
-        return (T)_services[typeof(T)].Instance;
+        return (T)service.Instance;
     }
 
     /// <summary>
@@ -44,10 +43,9 @@ public class Services(AutoloadsFramework autoloads)
     /// </exception>
     public void Register(Node node)
     {
-        if (_services.ContainsKey(node.GetType()))
-        {
-            throw new Exception($"There can only be one service of type '{node.GetType().Name}'");
-        }
+        Type serviceType = node.GetType();
+        if (_services.ContainsKey(serviceType))
+            throw new InvalidOperationException($"There can only be one service of type '{serviceType.Name}'.");
 
         //GD.Print($"Registering service: {node.GetType().Name}");
         AddService(node);
@@ -86,9 +84,7 @@ public class Services(AutoloadsFramework autoloads)
             bool success = _services.Remove(service.Instance.GetType());
 
             if (!success)
-            {
-                throw new Exception($"Failed to remove the service '{service.Instance.GetType().Name}'");
-            }
+                throw new InvalidOperationException($"Failed to remove the service '{service.Instance.GetType().Name}'.");
         }
     }
 
