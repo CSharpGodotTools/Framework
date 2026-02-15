@@ -24,6 +24,7 @@ public abstract class ENetClient : ENetLow
 
     private readonly ConcurrentQueue<Packet> _incoming = new();
     private static readonly ClientLogAggregator _logAggregator = new();
+    private static int _activeClientWorkers;
 
     /// <summary>
     /// The ping interval in ms. The default is 1000.
@@ -157,6 +158,7 @@ public abstract class ENetClient : ENetLow
     protected void WorkerThread(string ip, ushort port)
     {
         Interlocked.Exchange(ref _running, 1);
+        Interlocked.Increment(ref _activeClientWorkers);
         Host = new Host();
 
         try
@@ -173,6 +175,11 @@ public abstract class ENetClient : ENetLow
             Host.Dispose();
             Interlocked.Exchange(ref _running, 0);
             NotifyClientStopped();
+
+            if (Interlocked.Decrement(ref _activeClientWorkers) == 0)
+            {
+                _logAggregator.Flush(force: true, message => Log(message));
+            }
         }
     }
 

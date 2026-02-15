@@ -210,7 +210,7 @@ public partial class Credits : Node
     private void OnPausePressed()
     {
         _paused = !_paused;
-        _btnPause.Text = _paused ? PauseText : ResumeText;
+        _btnPause.Text = _paused ? ResumeText : PauseText;
     }
 
     private void OnSpeedPressed()

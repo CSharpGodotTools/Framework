@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Framework.Netcode;
 
-public class Net
+public class Net : IDisposable
 {
     private const int ShutdownPollIntervalMs = 50;
 
@@ -20,8 +20,11 @@ public class Net
 
     private readonly IGameClientFactory _clientFactory;
     private readonly IGameServerFactory _serverFactory;
+    private readonly UI.PopupMenu _popupMenu;
     private readonly bool _enetInitialized;
     private long _shutdownStarted;
+    private int _disposed;
+    private bool _stopRequestedByMainMenu;
 
     public event Action<GodotServer> ServerCreated;
     public event Action<GodotClient> ClientCreated;
@@ -44,10 +47,11 @@ public class Net
 
         _clientFactory = clientFactory;
         _serverFactory = serverFactory;
+        _popupMenu = GameFramework.Services.Get<UI.PopupMenu>();
         _enetInitialized = TryInitializeEnet();
 
         Autoloads.Instance.PreQuit += StopThreads;
-        GameFramework.Services.Get<UI.PopupMenu>().MainMenuBtnPressed += OnMainMenuBtnPressed;
+        _popupMenu.MainMenuBtnPressed += OnMainMenuBtnPressed;
 
         Client = _clientFactory.CreateClient();
         Server = _serverFactory.CreateServer();
@@ -218,6 +222,28 @@ public class Net
 
     private void OnMainMenuBtnPressed()
     {
+        _stopRequestedByMainMenu = true;
         _ = StopThreads();
+    }
+
+    /// <summary>
+    /// Unsubscribes lifecycle handlers and requests shutdown of active network workers.
+    /// </summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
+            return;
+        }
+
+        Autoloads.Instance.PreQuit -= StopThreads;
+        _popupMenu.MainMenuBtnPressed -= OnMainMenuBtnPressed;
+
+        if (!_stopRequestedByMainMenu)
+        {
+            _ = StopThreads();
+        }
+
+        GC.SuppressFinalize(this);
     }
 }

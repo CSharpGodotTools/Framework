@@ -3,6 +3,7 @@ using Framework.Netcode.Server;
 using Godot;
 using GodotUtils;
 using System;
+using System.Threading.Tasks;
 
 namespace Framework.Netcode;
 
@@ -54,6 +55,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         UnsubscribeFromClient(_subscribedClient);
         UnbindUiEvents();
         UnbindNetEvents();
+        Net.Dispose();
         Net = null;
     }
 
@@ -135,9 +137,12 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         Net.StopServer();
     }
 
-    private async void OnStartClientBtnPressed()
+    private void OnStartClientBtnPressed()
     {
-        await Net.StartClient(_ip, _port);
+        Task connectTask = Net.StartClient(_ip, _port);
+        _ = connectTask.ContinueWith(
+            task => GameFramework.Logger.LogErr(task.Exception!, "Client start failed"),
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     private void OnStopClientBtnPressed()

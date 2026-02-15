@@ -4,8 +4,7 @@ namespace Framework.UI.Console;
 
 public class ConsoleHistory
 {
-    private readonly Dictionary<int, string> _inputHistory = [];
-    private int _inputHistoryIndex;
+    private readonly List<string> _inputHistory = [];
     private int _inputHistoryNav;
 
     /// <summary>
@@ -13,8 +12,8 @@ public class ConsoleHistory
     /// </summary>
     public void Add(string text)
     {
-        _inputHistory.Add(_inputHistoryIndex++, text);
-        _inputHistoryNav = _inputHistoryIndex;
+        _inputHistory.Add(text);
+        _inputHistoryNav = _inputHistory.Count;
     }
 
     /// <summary>
@@ -22,11 +21,9 @@ public class ConsoleHistory
     /// </summary>
     public string MoveUpOne()
     {
-        _inputHistoryNav--;
-
-        if (!_inputHistory.ContainsKey(_inputHistoryNav))
+        if (_inputHistoryNav > 0)
         {
-            _inputHistoryNav++;
+            _inputHistoryNav--;
         }
 
         return Get(_inputHistoryNav);
@@ -37,11 +34,9 @@ public class ConsoleHistory
     /// </summary>
     public string MoveDownOne()
     {
-        _inputHistoryNav++;
-
-        if (!_inputHistory.ContainsKey(_inputHistoryNav))
+        if (_inputHistoryNav < _inputHistory.Count)
         {
-            _inputHistoryNav--;
+            _inputHistoryNav++;
         }
 
         return Get(_inputHistoryNav);
@@ -54,6 +49,11 @@ public class ConsoleHistory
 
     public string Get(int nav)
     {
+        if (nav == _inputHistory.Count)
+        {
+            return string.Empty;
+        }
+
         return _inputHistory[nav];
     }
 }

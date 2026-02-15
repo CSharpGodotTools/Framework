@@ -30,6 +30,7 @@ public partial class ModLoader : Node
         _uiIncompatibilities = GetNode<Label>("%Incompatibilities");
 
         ModLoaderUI modLoaderUi = new();
+        modLoaderUi.LoadMods(this);
         Dictionary<string, ModInfo> mods = modLoaderUi.GetMods();
 
         bool first = true;

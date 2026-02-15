@@ -20,7 +20,7 @@ public abstract class GodotServer : ENetServer
     /// Options controls logging behavior and ignored packets are excluded from logging.
     /// </para>
     /// </summary>
-    public async void Start(ushort port, int maxClients, ENetOptions options, params Type[] ignoredPackets)
+    public void Start(ushort port, int maxClients, ENetOptions options, params Type[] ignoredPackets)
     {
         if (IsRunning)
         {
@@ -31,7 +31,11 @@ public abstract class GodotServer : ENetServer
         Options = options ?? new ENetOptions();
         InitIgnoredPackets(ignoredPackets);
         CTS = new CancellationTokenSource();
+        _ = StartWorkerThreadAsync(port, maxClients);
+    }
 
+    private async Task StartWorkerThreadAsync(ushort port, int maxClients)
+    {
         try
         {
             await Task.Factory.StartNew(

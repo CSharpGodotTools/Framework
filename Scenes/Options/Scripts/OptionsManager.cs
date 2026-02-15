@@ -4,7 +4,6 @@ using GodotUtils;
 using GodotUtils.RegEx;
 using System;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -243,7 +242,45 @@ public partial class OptionsManager : IDisposable
 
     private static bool ActionsAreEqual(Dictionary<StringName, Array<InputEvent>> dict1, Dictionary<StringName, Array<InputEvent>> dict2)
     {
-        return dict1.Count == dict2.Count && dict1.All(pair => dict2.ContainsKey(pair.Key));
+        if (dict1.Count != dict2.Count)
+        {
+            return false;
+        }
+
+        foreach (System.Collections.Generic.KeyValuePair<StringName, Array<InputEvent>> pair in dict1)
+        {
+            if (!dict2.TryGetValue(pair.Key, out Array<InputEvent> dict2Events))
+            {
+                return false;
+            }
+
+            if (!InputEventsAreEqual(pair.Value, dict2Events))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool InputEventsAreEqual(Array<InputEvent> events1, Array<InputEvent> events2)
+    {
+        if (events1.Count != events2.Count)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < events1.Count; index++)
+        {
+            string event1 = events1[index].AsText();
+            string event2 = events2[index].AsText();
+            if (!event1.Equals(event2, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void SetWindowMode()

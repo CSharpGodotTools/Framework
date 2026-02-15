@@ -14,8 +14,9 @@ public class Services(AutoloadsFramework autoloads)
     /// <summary>
     /// Dictionary to store registered services, keyed by their type.
     /// </summary>
-    private readonly Dictionary<Type, Service> _services = [];
+    private readonly Dictionary<Type, Node> _services = [];
     private readonly SceneManager _sceneManager = autoloads.SceneManager;
+    private bool _isCleanupSubscribed;
 
     // API
     /// <summary>
@@ -26,10 +27,10 @@ public class Services(AutoloadsFramework autoloads)
     public T Get<T>()
     {
         Type serviceType = typeof(T);
-        if (!_services.TryGetValue(serviceType, out Service service))
+        if (!_services.TryGetValue(serviceType, out Node service))
             throw new InvalidOperationException($"Unable to obtain service '{serviceType.Name}'.");
 
-        return (T)service.Instance;
+        return (T)(object)service;
     }
 
     /// <summary>
@@ -57,35 +58,32 @@ public class Services(AutoloadsFramework autoloads)
     /// </summary>
     private void AddService(Node node)
     {
-        Service service = new()
-        {
-            Instance = node
-        };
-
-        _services.Add(node.GetType(), service);
-
-        RemoveServiceOnSceneChanged(service);
+        _services.Add(node.GetType(), node);
+        EnsureCleanupSubscription();
     }
 
     /// <summary>
-    /// Removes a service when the scene changes.
+    /// Subscribes to scene cleanup exactly once.
     /// </summary>
-    private void RemoveServiceOnSceneChanged(Service service)
+    private void EnsureCleanupSubscription()
     {
-        // The scene has changed, remove all services
-        _sceneManager.PreSceneChanged += Cleanup;
-
-        void Cleanup()
+        if (_isCleanupSubscribed)
         {
-            // Stop listening to PreSceneChanged
-            _sceneManager.PreSceneChanged -= Cleanup;
-
-            // Remove the service
-            bool success = _services.Remove(service.Instance.GetType());
-
-            if (!success)
-                throw new InvalidOperationException($"Failed to remove the service '{service.Instance.GetType().Name}'.");
+            return;
         }
+
+        _sceneManager.PreSceneChanged += CleanupOnSceneChanged;
+        _isCleanupSubscribed = true;
+    }
+
+    /// <summary>
+    /// Removes all services when the active scene changes.
+    /// </summary>
+    private void CleanupOnSceneChanged()
+    {
+        _services.Clear();
+        _sceneManager.PreSceneChanged -= CleanupOnSceneChanged;
+        _isCleanupSubscribed = false;
     }
 
     /// <summary>
@@ -94,16 +92,5 @@ public class Services(AutoloadsFramework autoloads)
     public override string ToString()
     {
         return _services.ToFormattedString();
-    }
-
-    /// <summary>
-    /// A class representing a service instance
-    /// </summary>
-    private class Service
-    {
-        /// <summary>
-        /// The instance of the service.
-        /// </summary>
-        public object Instance { get; set; }
     }
 }

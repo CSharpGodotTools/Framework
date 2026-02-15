@@ -18,6 +18,8 @@ public class ModLoaderUI
 
     public void LoadMods(Node node)
     {
+        _mods.Clear();
+
         string modsPath = ProjectSettings.GlobalizePath("res://Mods");
 
         // Ensure "Mods" directory always exists
@@ -27,7 +29,7 @@ public class ModLoaderUI
 
         if (dir == null)
         {
-            GameFramework.Logger.LogWarning("Failed to open Mods directory has it does not exist");
+            GameFramework.Logger.LogWarning("Failed to open Mods directory because it does not exist");
             return;
         }
 
@@ -60,7 +62,18 @@ public class ModLoaderUI
 
             jsonFileContents = jsonFileContents.Replace("*", "Any");
 
-            ModInfo modInfo = JsonSerializer.Deserialize<ModInfo>(jsonFileContents, options);
+            if (!TryDeserializeModInfo(modJson, jsonFileContents, options, out ModInfo modInfo))
+            {
+                goto Next;
+            }
+
+            modInfo.Normalize();
+
+            if (string.IsNullOrWhiteSpace(modInfo.Id))
+            {
+                GameFramework.Logger.LogWarning($"The mod folder '{filename}' has an invalid or empty id and will be skipped");
+                goto Next;
+            }
 
             if (_mods.ContainsKey(modInfo.Id))
             {
@@ -95,7 +108,7 @@ public class ModLoaderUI
 
                 string modScenePath = $"res://{modInfo.Author}/{modInfo.Id}/mod.tscn";
 
-                PackedScene importedScene = (PackedScene)ResourceLoader.Load(modScenePath);
+                PackedScene importedScene = ResourceLoader.Load<PackedScene>(modScenePath);
 
                 if (importedScene == null)
                 {
@@ -114,17 +127,55 @@ public class ModLoaderUI
         dir.ListDirEnd();
         dir.Dispose();
     }
+
+    private static bool TryDeserializeModInfo(
+        string modJsonPath,
+        string jsonFileContents,
+        JsonSerializerOptions options,
+        out ModInfo modInfo)
+    {
+        try
+        {
+            modInfo = JsonSerializer.Deserialize<ModInfo>(jsonFileContents, options);
+        }
+        catch (JsonException exception)
+        {
+            GameFramework.Logger.LogWarning($"Failed to parse '{modJsonPath}': {exception.Message}");
+            modInfo = new ModInfo();
+            return false;
+        }
+
+        if (modInfo != null)
+        {
+            return true;
+        }
+
+        GameFramework.Logger.LogWarning($"The file '{modJsonPath}' is empty or malformed and was skipped");
+        modInfo = new ModInfo();
+        return false;
+    }
 }
 
 public class ModInfo
 {
-    public string Name        { get; set; }
-    public string Id          { get; set; }
-    public string ModVersion  { get; set; }
-    public string GameVersion { get; set; }
-    public string Description { get; set; }
-    public string Author      { get; set; }
+    public string Name        { get; set; } = string.Empty;
+    public string Id          { get; set; } = string.Empty;
+    public string ModVersion  { get; set; } = string.Empty;
+    public string GameVersion { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Author      { get; set; } = string.Empty;
 
-    public Dictionary<string, string> Dependencies      { get; set; }
-    public Dictionary<string, string> Incompatibilities { get; set; }
+    public Dictionary<string, string> Dependencies      { get; set; } = [];
+    public Dictionary<string, string> Incompatibilities { get; set; } = [];
+
+    public void Normalize()
+    {
+        Name = string.IsNullOrWhiteSpace(Name) ? Id : Name;
+        Author = string.IsNullOrWhiteSpace(Author) ? "Unknown" : Author;
+        ModVersion = string.IsNullOrWhiteSpace(ModVersion) ? "Unknown" : ModVersion;
+        GameVersion = string.IsNullOrWhiteSpace(GameVersion) ? "Unknown" : GameVersion;
+        Description ??= string.Empty;
+        Dependencies ??= [];
+        Incompatibilities ??= [];
+    }
 }

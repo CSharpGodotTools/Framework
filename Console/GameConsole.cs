@@ -52,7 +52,7 @@ public partial class GameConsole : Node
 
     public List<ConsoleCommandInfo> GetCommands()
     {
-        return _commands;
+        return [.. _commands];
     }
 
     public ConsoleCommandInfo RegisterCommand(string cmd, Action<string[]> code)
