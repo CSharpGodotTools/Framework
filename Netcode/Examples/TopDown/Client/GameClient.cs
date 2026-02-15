@@ -15,6 +15,11 @@ public partial class GameClient : GodotClient
 
     private readonly Dictionary<uint, Vector2> _remotePositions = [];
     private readonly Dictionary<uint, Vector2> _pendingPositions = [];
+    private uint _localId;
+    private bool _hasLocalId;
+
+    public bool HasLocalId => _hasLocalId;
+    public uint LocalId => _localId;
 
     public GameClient()
     {
@@ -29,6 +34,7 @@ public partial class GameClient : GodotClient
 
     protected override void OnDisconnect(Event netEvent)
     {
+        ResetLocalId();
         _remotePositions.Clear();
         _pendingPositions.Clear();
     }
@@ -127,5 +133,19 @@ public partial class GameClient : GodotClient
         }
 
         RemotePositionsUpdated?.Invoke(new Dictionary<uint, Vector2>(_remotePositions));
+    }
+
+    private bool TrySetLocalId(uint localId)
+    {
+        bool hasChanged = !_hasLocalId || _localId != localId;
+        _localId = localId;
+        _hasLocalId = true;
+        return hasChanged;
+    }
+
+    private void ResetLocalId()
+    {
+        _hasLocalId = false;
+        _localId = 0;
     }
 }
