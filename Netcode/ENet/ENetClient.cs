@@ -178,7 +178,6 @@ public abstract class ENetClient : ENetLow
         }
 
         _peer.Disconnect((uint)DisconnectOpcode.Disconnected);
-        OnDisconnectCleanup(_peer);
     }
 
     private void QueueDisconnectedCommand(DisconnectOpcode opcode)
