@@ -85,7 +85,7 @@ public abstract partial class AutoloadsFramework : Node
         MetricsOverlay.Update();
 
 #if DEBUG
-        _visualizeAutoload.Update();
+        VisualizeAutoload.Update();
 #endif
 
         Logger.Update();

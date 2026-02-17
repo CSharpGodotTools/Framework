@@ -184,13 +184,13 @@ public class ModLoaderUI
         }
     }
 
-    private static IReadOnlyList<IModEntrypoint> ActivateEntrypoints(Node hostNode, ModInfo modInfo, Assembly assembly)
+    private static List<IModEntrypoint> ActivateEntrypoints(Node hostNode, ModInfo modInfo, Assembly assembly)
     {
         ModMetadata metadata = new(modInfo.Id, modInfo.Name, modInfo.Author, modInfo.ModVersion, modInfo.GameVersion);
         IModContext context = new ModContext(hostNode, metadata);
         List<IModEntrypoint> entrypoints = [];
         Type entrypointType = typeof(IModEntrypoint);
-        IReadOnlyList<Type> types = GetLoadableTypes(assembly, modInfo.Id);
+        Type[] types = GetLoadableTypes(assembly, modInfo.Id);
 
         foreach (Type type in types.Where(type => !type.IsAbstract && !type.IsInterface && entrypointType.IsAssignableFrom(type)))
         {
@@ -217,7 +217,7 @@ public class ModLoaderUI
         return entrypoints;
     }
 
-    private static IReadOnlyList<Type> GetLoadableTypes(Assembly assembly, string modId)
+    private static Type[] GetLoadableTypes(Assembly assembly, string modId)
     {
         try
         {
@@ -230,7 +230,7 @@ public class ModLoaderUI
                 GameFramework.Logger.LogErr(loaderException, $"Managed mod '{modId}' failed to resolve one or more types");
             }
 
-            Type[] loadableTypes = exception.Types.Where(type => type != null).ToArray();
+            Type[] loadableTypes = [.. exception.Types.Where(type => type != null)];
             return loadableTypes;
         }
     }
