@@ -1866,7 +1866,7 @@
             Called when an unhandled input event is received while input is enabled.
             </summary>
         </member>
-        <member name="M:GodotUtils.Component.OnDispose">
+        <member name="M:GodotUtils.Component.ExitTree">
             <summary>
             Called when the owner node exits the tree.
             </summary>

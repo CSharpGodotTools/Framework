@@ -70,7 +70,7 @@ public partial class FocusOutlineManager(Node owner) : Component(owner)
         _outline.Size = _currentFocus.Size + padding * 2;
     }
 
-    protected override void OnDispose()
+    protected override void ExitTree()
     {
         _viewport.GuiFocusChanged -= OnGuiFocusChanged;
     }
