@@ -4,6 +4,9 @@ using System.Collections.Generic;
 
 namespace Framework.UI;
 
+/// <summary>
+/// Creates and manages UI controls for custom options registered via OptionsManager.
+/// </summary>
 public sealed class OptionsCustom : IDisposable
 {
     private readonly Dictionary<int, IDisposable> _bindings = [];
@@ -17,17 +20,17 @@ public sealed class OptionsCustom : IDisposable
 
         List<CustomOptionDescriptor> options = [];
 
-        foreach (OptionsSliderDefinition slider in _optionsManager.GetSliderOptions())
+        foreach (RegisteredSliderOption slider in _optionsManager.GetSliderOptions())
         {
             options.Add(new CustomOptionDescriptor(slider));
         }
 
-        foreach (OptionsDropdownDefinition dropdown in _optionsManager.GetDropdownOptions())
+        foreach (RegisteredDropdownOption dropdown in _optionsManager.GetDropdownOptions())
         {
             options.Add(new CustomOptionDescriptor(dropdown));
         }
 
-        foreach (OptionsLineEditDefinition lineEdit in _optionsManager.GetLineEditOptions())
+        foreach (RegisteredLineEditOption lineEdit in _optionsManager.GetLineEditOptions())
         {
             options.Add(new CustomOptionDescriptor(lineEdit));
         }
@@ -59,17 +62,17 @@ public sealed class OptionsCustom : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private void OnSliderOptionRegistered(OptionsSliderDefinition slider)
+    private void OnSliderOptionRegistered(RegisteredSliderOption slider)
     {
         AddOrReplaceOption(new CustomOptionDescriptor(slider));
     }
 
-    private void OnDropdownOptionRegistered(OptionsDropdownDefinition dropdown)
+    private void OnDropdownOptionRegistered(RegisteredDropdownOption dropdown)
     {
         AddOrReplaceOption(new CustomOptionDescriptor(dropdown));
     }
 
-    private void OnLineEditOptionRegistered(OptionsLineEditDefinition lineEdit)
+    private void OnLineEditOptionRegistered(RegisteredLineEditOption lineEdit)
     {
         AddOrReplaceOption(new CustomOptionDescriptor(lineEdit));
     }
@@ -83,6 +86,7 @@ public sealed class OptionsCustom : IDisposable
         if (navButton == null)
             return;
 
+        // Re-registration replaces the existing control in-place.
         if (_bindings.TryGetValue(option.Id, out IDisposable existing))
         {
             existing.Dispose();
@@ -119,16 +123,18 @@ public sealed class OptionsCustom : IDisposable
     private static SliderBinding CreateSliderBinding(
         VBoxContainer tabContainer,
         Button navButton,
-        OptionsSliderDefinition sliderDef)
+        RegisteredSliderOption sliderOption)
     {
+        SliderOptionDefinition sliderDefinition = sliderOption.Definition;
+
         HBoxContainer row = new()
         {
-            Name = $"CustomSlider_{sliderDef.Id}"
+            Name = $"CustomSlider_{sliderOption.Id}"
         };
 
         Label label = new()
         {
-            Text = string.IsNullOrWhiteSpace(sliderDef.Label) ? $"SLIDER_{sliderDef.Id}" : sliderDef.Label,
+            Text = string.IsNullOrWhiteSpace(sliderDefinition.Label) ? $"SLIDER_{sliderOption.Id}" : sliderDefinition.Label,
             CustomMinimumSize = new Vector2(200, 0)
         };
         row.AddChild(label);
@@ -136,9 +142,9 @@ public sealed class OptionsCustom : IDisposable
         HSlider slider = new()
         {
             CustomMinimumSize = new Vector2(250, 0),
-            MinValue = sliderDef.MinValue,
-            MaxValue = sliderDef.MaxValue,
-            Step = sliderDef.Step
+            MinValue = sliderDefinition.MinValue,
+            MaxValue = sliderDefinition.MaxValue,
+            Step = sliderDefinition.Step
         };
         slider.FocusNeighborLeft = navButton.GetPath();
         row.AddChild(slider);
@@ -151,13 +157,14 @@ public sealed class OptionsCustom : IDisposable
         }
 
         float clampedValue = Mathf.Clamp(
-            sliderDef.GetValue(),
-            (float)sliderDef.MinValue,
-            (float)sliderDef.MaxValue);
-        sliderDef.SetValue(clampedValue);
+            sliderOption.GetValue(),
+            (float)sliderDefinition.MinValue,
+            (float)sliderDefinition.MaxValue);
+
+        sliderOption.SetValue(clampedValue);
         slider.Value = clampedValue;
 
-        Godot.Range.ValueChangedEventHandler onValueChanged = v => sliderDef.SetValue((float)v);
+        Godot.Range.ValueChangedEventHandler onValueChanged = v => sliderOption.SetValue((float)v);
         slider.ValueChanged += onValueChanged;
 
         return new SliderBinding(row, slider, onValueChanged);
@@ -166,16 +173,18 @@ public sealed class OptionsCustom : IDisposable
     private static DropdownBinding CreateDropdownBinding(
         VBoxContainer tabContainer,
         Button navButton,
-        OptionsDropdownDefinition dropdownDef)
+        RegisteredDropdownOption dropdownOption)
     {
+        DropdownOptionDefinition dropdownDefinition = dropdownOption.Definition;
+
         HBoxContainer row = new()
         {
-            Name = $"CustomDropdown_{dropdownDef.Id}"
+            Name = $"CustomDropdown_{dropdownOption.Id}"
         };
 
         Label label = new()
         {
-            Text = string.IsNullOrWhiteSpace(dropdownDef.Label) ? $"DROPDOWN_{dropdownDef.Id}" : dropdownDef.Label,
+            Text = string.IsNullOrWhiteSpace(dropdownDefinition.Label) ? $"DROPDOWN_{dropdownOption.Id}" : dropdownDefinition.Label,
             CustomMinimumSize = new Vector2(200, 0)
         };
         row.AddChild(label);
@@ -185,9 +194,9 @@ public sealed class OptionsCustom : IDisposable
             CustomMinimumSize = new Vector2(250, 0)
         };
 
-        for (int index = 0; index < dropdownDef.Items.Count; index++)
+        for (int index = 0; index < dropdownDefinition.Items.Count; index++)
         {
-            dropdown.AddItem(dropdownDef.Items[index], index);
+            dropdown.AddItem(dropdownDefinition.Items[index], index);
         }
 
         dropdown.FocusNeighborLeft = navButton.GetPath();
@@ -199,12 +208,12 @@ public sealed class OptionsCustom : IDisposable
             navButton.FocusNeighborRight = dropdown.GetPath();
         }
 
-        int maxIndex = dropdownDef.Items.Count - 1;
-        int clampedValue = Mathf.Clamp(dropdownDef.GetValue(), 0, maxIndex);
-        dropdownDef.SetValue(clampedValue);
+        int maxIndex = dropdownDefinition.Items.Count - 1;
+        int clampedValue = Mathf.Clamp(dropdownOption.GetValue(), 0, maxIndex);
+        dropdownOption.SetValue(clampedValue);
         dropdown.Select(clampedValue);
 
-        OptionButton.ItemSelectedEventHandler onItemSelected = index => dropdownDef.SetValue((int)index);
+        OptionButton.ItemSelectedEventHandler onItemSelected = index => dropdownOption.SetValue((int)index);
         dropdown.ItemSelected += onItemSelected;
 
         return new DropdownBinding(row, dropdown, onItemSelected);
@@ -213,16 +222,18 @@ public sealed class OptionsCustom : IDisposable
     private static LineEditBinding CreateLineEditBinding(
         VBoxContainer tabContainer,
         Button navButton,
-        OptionsLineEditDefinition lineEditDef)
+        RegisteredLineEditOption lineEditOption)
     {
+        LineEditOptionDefinition lineEditDefinition = lineEditOption.Definition;
+
         HBoxContainer row = new()
         {
-            Name = $"CustomLineEdit_{lineEditDef.Id}"
+            Name = $"CustomLineEdit_{lineEditOption.Id}"
         };
 
         Label label = new()
         {
-            Text = string.IsNullOrWhiteSpace(lineEditDef.Label) ? $"LINE_EDIT_{lineEditDef.Id}" : lineEditDef.Label,
+            Text = string.IsNullOrWhiteSpace(lineEditDefinition.Label) ? $"LINE_EDIT_{lineEditOption.Id}" : lineEditDefinition.Label,
             CustomMinimumSize = new Vector2(200, 0)
         };
         row.AddChild(label);
@@ -230,7 +241,7 @@ public sealed class OptionsCustom : IDisposable
         LineEdit lineEdit = new()
         {
             CustomMinimumSize = new Vector2(250, 0),
-            PlaceholderText = lineEditDef.Placeholder
+            PlaceholderText = lineEditDefinition.Placeholder
         };
 
         lineEdit.FocusNeighborLeft = navButton.GetPath();
@@ -242,11 +253,11 @@ public sealed class OptionsCustom : IDisposable
             navButton.FocusNeighborRight = lineEdit.GetPath();
         }
 
-        string value = lineEditDef.GetValue() ?? string.Empty;
-        lineEditDef.SetValue(value);
+        string value = lineEditOption.GetValue() ?? string.Empty;
+        lineEditOption.SetValue(value);
         lineEdit.Text = value;
 
-        LineEdit.TextChangedEventHandler onTextChanged = text => lineEditDef.SetValue(text ?? string.Empty);
+        LineEdit.TextChangedEventHandler onTextChanged = text => lineEditOption.SetValue(text ?? string.Empty);
         lineEdit.TextChanged += onTextChanged;
 
         return new LineEditBinding(row, lineEdit, onTextChanged);
@@ -368,33 +379,33 @@ public sealed class OptionsCustom : IDisposable
 
     private readonly struct CustomOptionDescriptor
     {
-        public CustomOptionDescriptor(OptionsSliderDefinition slider)
+        public CustomOptionDescriptor(RegisteredSliderOption slider)
         {
             Id = slider.Id;
-            Tab = slider.Tab;
-            Order = slider.Order;
+            Tab = slider.Definition.Tab;
+            Order = slider.Definition.Order;
             Slider = slider;
             Dropdown = null;
             LineEdit = null;
             Type = CustomOptionType.Slider;
         }
 
-        public CustomOptionDescriptor(OptionsDropdownDefinition dropdown)
+        public CustomOptionDescriptor(RegisteredDropdownOption dropdown)
         {
             Id = dropdown.Id;
-            Tab = dropdown.Tab;
-            Order = dropdown.Order;
+            Tab = dropdown.Definition.Tab;
+            Order = dropdown.Definition.Order;
             Slider = null;
             Dropdown = dropdown;
             LineEdit = null;
             Type = CustomOptionType.Dropdown;
         }
 
-        public CustomOptionDescriptor(OptionsLineEditDefinition lineEdit)
+        public CustomOptionDescriptor(RegisteredLineEditOption lineEdit)
         {
             Id = lineEdit.Id;
-            Tab = lineEdit.Tab;
-            Order = lineEdit.Order;
+            Tab = lineEdit.Definition.Tab;
+            Order = lineEdit.Definition.Order;
             Slider = null;
             Dropdown = null;
             LineEdit = lineEdit;
@@ -404,9 +415,9 @@ public sealed class OptionsCustom : IDisposable
         public int Id { get; }
         public OptionsTab Tab { get; }
         public int Order { get; }
-        public OptionsSliderDefinition Slider { get; }
-        public OptionsDropdownDefinition Dropdown { get; }
-        public OptionsLineEditDefinition LineEdit { get; }
+        public RegisteredSliderOption Slider { get; }
+        public RegisteredDropdownOption Dropdown { get; }
+        public RegisteredLineEditOption LineEdit { get; }
         public CustomOptionType Type { get; }
     }
 }

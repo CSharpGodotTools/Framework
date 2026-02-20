@@ -13,13 +13,17 @@ using FileAccess = Godot.FileAccess;
 namespace Framework.UI;
 
 // Autoload
+/// <summary>
+/// Central options service used by the framework and game scripts.
+/// It loads/saves options, exposes current settings, and handles custom option registration.
+/// </summary>
 public partial class OptionsManager : IDisposable
 {
     // Events
     public event Action<WindowMode> WindowModeChanged;
-    internal event Action<OptionsSliderDefinition> SliderOptionRegistered;
-    internal event Action<OptionsDropdownDefinition> DropdownOptionRegistered;
-    internal event Action<OptionsLineEditDefinition> LineEditOptionRegistered;
+    internal event Action<RegisteredSliderOption> SliderOptionRegistered;
+    internal event Action<RegisteredDropdownOption> DropdownOptionRegistered;
+    internal event Action<RegisteredLineEditOption> LineEditOptionRegistered;
 
     // Constants
     private const string PathOptions = "user://options.json";
@@ -30,12 +34,14 @@ public partial class OptionsManager : IDisposable
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
     private ResourceOptions _options;
     private ResourceHotkeys _hotkeys;
-    private readonly Dictionary<int, OptionsSliderDefinition> _customSliderOptions = [];
-    private readonly Dictionary<int, OptionsDropdownDefinition> _customDropdownOptions = [];
-    private readonly Dictionary<int, OptionsLineEditDefinition> _customLineEditOptions = [];
+    private readonly Dictionary<int, RegisteredSliderOption> _customSliderOptions = [];
+    private readonly Dictionary<int, RegisteredDropdownOption> _customDropdownOptions = [];
+    private readonly Dictionary<int, RegisteredLineEditOption> _customLineEditOptions = [];
     private readonly Dictionary<(OptionsTab Tab, string Label), int> _customOptionIds = [];
     private int _nextCustomOptionId;
-    private bool _optionsLoadedFromDisk;
+    // True when options.json already existed and was loaded at startup.
+    // False on first run (no options.json yet).
+    private bool _loadedFromExistingOptionsFile;
     private string _currentOptionsTab = "General";
     private AutoloadsFramework _autoloads;
 
@@ -98,321 +104,118 @@ public partial class OptionsManager : IDisposable
         return _hotkeys;
     }
 
-    internal IEnumerable<OptionsSliderDefinition> GetSliderOptions()
+    internal IEnumerable<RegisteredSliderOption> GetSliderOptions()
     {
         return _customSliderOptions.Values;
     }
 
-    internal IEnumerable<OptionsDropdownDefinition> GetDropdownOptions()
+    internal IEnumerable<RegisteredDropdownOption> GetDropdownOptions()
     {
         return _customDropdownOptions.Values;
     }
 
-    internal IEnumerable<OptionsLineEditDefinition> GetLineEditOptions()
+    internal IEnumerable<RegisteredLineEditOption> GetLineEditOptions()
     {
         return _customLineEditOptions.Values;
     }
 
-    public float GetSliderValue(OptionsTab tab, string label, float defaultValue = 0.0f)
+    /// <summary>
+    /// Registers a custom slider option class.
+    /// </summary>
+    public void AddSlider(SliderOptionDefinition option)
     {
-        string key = GetCustomOptionKey(tab, label);
-        return GetOrCreateSliderValue(key, defaultValue);
-    }
+        ArgumentNullException.ThrowIfNull(option);
 
-    public int GetDropdownValue(OptionsTab tab, string label, int defaultValue = 0)
-    {
-        string key = GetCustomOptionKey(tab, label);
-        return GetOrCreateDropdownValue(key, defaultValue);
-    }
+        ValidateOptionLabel(option.Label, "Slider");
+        ValidateSliderRange(option.MinValue, option.MaxValue, option.Step);
 
-    public string GetLineEditValue(OptionsTab tab, string label, string defaultValue = "")
-    {
-        string key = GetCustomOptionKey(tab, label);
-        return GetOrCreateLineEditValue(key, defaultValue ?? string.Empty);
-    }
-
-    public void SetSliderValue(OptionsTab tab, string label, float value)
-    {
-        string key = GetCustomOptionKey(tab, label);
-        SetCustomSliderValue(key, value);
-    }
-
-    public void SetDropdownValue(OptionsTab tab, string label, int value)
-    {
-        string key = GetCustomOptionKey(tab, label);
-        SetCustomDropdownValue(key, value);
-    }
-
-    public void SetLineEditValue(OptionsTab tab, string label, string value)
-    {
-        string key = GetCustomOptionKey(tab, label);
-        SetCustomLineEditValue(key, value ?? string.Empty);
-    }
-
-    public void AddSlider(
-        OptionsTab tab,
-        string label,
-        double minValue,
-        double maxValue,
-        double step = 1.0,
-        float defaultValue = 0.0f,
-        int order = 0,
-        Action<float> onValueChanged = null)
-    {
-        AddSlider(tab, slider =>
-        {
-            slider
-                .Label(label)
-                .Range(minValue, maxValue)
-                .Step(step)
-                .Default(defaultValue)
-                .WithOrder(order);
-
-            if (onValueChanged != null)
-            {
-                slider.Value(
-                    () => GetSliderValue(tab, label, defaultValue),
-                    value => onValueChanged(value));
-            }
-        });
-    }
-
-    public void AddDropdown(
-        OptionsTab tab,
-        string label,
-        IEnumerable<string> items,
-        int defaultValue = 0,
-        int order = 0,
-        Action<int> onValueChanged = null)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-        string[] itemArray = [.. items];
-
-        AddDropdown(tab, dropdown =>
-        {
-            dropdown
-                .Label(label)
-                .Items(itemArray)
-                .Default(defaultValue)
-                .WithOrder(order);
-
-            if (onValueChanged != null)
-            {
-                dropdown.Value(
-                    () => GetDropdownValue(tab, label, defaultValue),
-                    value => onValueChanged(value));
-            }
-        });
-    }
-
-    public void AddLineEdit(
-        OptionsTab tab,
-        string label,
-        string defaultValue = "",
-        string placeholder = "",
-        int order = 0,
-        Action<string> onValueChanged = null)
-    {
-        AddLineEdit(tab, lineEdit =>
-        {
-            lineEdit
-                .Label(label)
-                .Default(defaultValue ?? string.Empty)
-                .Placeholder(placeholder ?? string.Empty)
-                .WithOrder(order);
-
-            if (onValueChanged != null)
-            {
-                lineEdit.Value(
-                    () => GetLineEditValue(tab, label, defaultValue),
-                    value => onValueChanged(value ?? string.Empty));
-            }
-        });
-    }
-
-    public void AddSlider(
-        OptionsTab tab,
-        string label,
-        Func<float> getValue,
-        Action<float> setValue,
-        double minValue,
-        double maxValue,
-        double step = 1.0,
-        float defaultValue = 0.0f,
-        int order = 0)
-    {
-        ArgumentNullException.ThrowIfNull(getValue);
-        ArgumentNullException.ThrowIfNull(setValue);
-
-        AddSlider(tab, slider => slider
-            .Label(label)
-            .Value(getValue, setValue)
-            .Range(minValue, maxValue)
-            .Step(step)
-            .Default(defaultValue)
-            .WithOrder(order)
-            .TrackInResource(false));
-    }
-
-    public void AddDropdown(
-        OptionsTab tab,
-        string label,
-        IEnumerable<string> items,
-        Func<int> getValue,
-        Action<int> setValue,
-        int defaultValue = 0,
-        int order = 0)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(getValue);
-        ArgumentNullException.ThrowIfNull(setValue);
-
-        string[] itemArray = [.. items];
-
-        AddDropdown(tab, dropdown => dropdown
-            .Label(label)
-            .Items(itemArray)
-            .Value(getValue, setValue)
-            .Default(defaultValue)
-            .WithOrder(order)
-            .TrackInResource(false));
-    }
-
-    public void AddLineEdit(
-        OptionsTab tab,
-        string label,
-        Func<string> getValue,
-        Action<string> setValue,
-        string defaultValue = "",
-        string placeholder = "",
-        int order = 0)
-    {
-        ArgumentNullException.ThrowIfNull(getValue);
-        ArgumentNullException.ThrowIfNull(setValue);
-
-        AddLineEdit(tab, lineEdit => lineEdit
-            .Label(label)
-            .Value(getValue, setValue)
-            .Default(defaultValue ?? string.Empty)
-            .Placeholder(placeholder ?? string.Empty)
-            .WithOrder(order)
-            .TrackInResource(false));
-    }
-
-    public void AddSlider(OptionsTab tab, Action<OptionsSliderBuilder> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        OptionsSliderBuilder builder = new();
-        configure(builder);
-
-        OptionsSliderRegistration registration = builder.Build();
-        int id = GetOrCreateOptionId(tab, registration.Label);
-        string key = GetCustomOptionKey(tab, registration.Label);
+        int id = GetOrCreateOptionId(option.Tab, option.Label);
+        string key = ResolveSaveKey(option.SaveKey, option.Label);
 
         Func<float> getValue;
         Action<float> setValue;
 
-        if (registration.TrackInResource)
-        {
-            float defaultValue = registration.HasDefault
-                ? registration.DefaultValue
-                : registration.GetValue != null
-                    ? registration.GetValue()
-                    : 0.0f;
+        float minValue = (float)option.MinValue;
+        float maxValue = (float)option.MaxValue;
+        float defaultValue = Mathf.Clamp(option.DefaultValue, minValue, maxValue);
 
-            float trackedValue = GetOrCreateSliderValue(key, defaultValue);
-            trackedValue = Mathf.Clamp(trackedValue, (float)registration.MinValue, (float)registration.MaxValue);
+        // Mode A: option manages its own value in inline custom JSON storage.
+        if (option.SaveInCustomValues)
+        {
+            float trackedValue = Mathf.Clamp(GetOrCreateSliderValue(key, defaultValue), minValue, maxValue);
             SetCustomSliderValue(key, trackedValue);
-            registration.SetValue?.Invoke(trackedValue);
+            option.SetValue(trackedValue);
 
             getValue = () =>
             {
-                float value = GetOrCreateSliderValue(key, defaultValue);
-                value = Mathf.Clamp(value, (float)registration.MinValue, (float)registration.MaxValue);
+                float value = Mathf.Clamp(GetOrCreateSliderValue(key, defaultValue), minValue, maxValue);
                 SetCustomSliderValue(key, value);
                 return value;
             };
 
             setValue = value =>
             {
-                float clamped = Mathf.Clamp(value, (float)registration.MinValue, (float)registration.MaxValue);
-                SetCustomSliderValue(key, clamped);
-                registration.SetValue?.Invoke(clamped);
+                float clampedValue = Mathf.Clamp(value, minValue, maxValue);
+                SetCustomSliderValue(key, clampedValue);
+                option.SetValue(clampedValue);
             };
         }
         else
         {
+            // Mode B: option is bound to typed settings (for example ResourceOptions.MouseSensitivity).
             RemoveCustomOptionValue(key);
 
-            if (registration.GetValue == null || registration.SetValue == null)
-                throw new InvalidOperationException("Slider with TrackInResource(false) requires getter and setter.");
-
-            if (!_optionsLoadedFromDisk && registration.HasDefault)
+            // On first run, seed typed settings with default once.
+            if (!_loadedFromExistingOptionsFile)
             {
-                float defaultClamped = Mathf.Clamp(
-                    registration.DefaultValue,
-                    (float)registration.MinValue,
-                    (float)registration.MaxValue);
-                registration.SetValue(defaultClamped);
+                option.SetValue(defaultValue);
             }
 
             getValue = () =>
             {
-                float value = registration.GetValue();
-                return Mathf.Clamp(value, (float)registration.MinValue, (float)registration.MaxValue);
+                float value = option.GetValue();
+                return Mathf.Clamp(value, minValue, maxValue);
             };
 
             setValue = value =>
             {
-                float clamped = Mathf.Clamp(value, (float)registration.MinValue, (float)registration.MaxValue);
-                registration.SetValue(clamped);
+                float clampedValue = Mathf.Clamp(value, minValue, maxValue);
+                option.SetValue(clampedValue);
             };
         }
 
-        OptionsSliderDefinition slider = new(
-            id,
-            tab,
-            registration.Label,
-            getValue,
-            setValue,
-            registration.MinValue,
-            registration.MaxValue,
-            registration.Step,
-            registration.Order);
-
+        RegisteredSliderOption slider = new(id, option, getValue, setValue);
         _customDropdownOptions.Remove(id);
         _customLineEditOptions.Remove(id);
         _customSliderOptions[id] = slider;
         SliderOptionRegistered?.Invoke(slider);
     }
 
-    public void AddDropdown(OptionsTab tab, Action<OptionsDropdownBuilder> configure)
+    /// <summary>
+    /// Registers a custom dropdown option class.
+    /// </summary>
+    public void AddDropdown(DropdownOptionDefinition option)
     {
-        ArgumentNullException.ThrowIfNull(configure);
+        ArgumentNullException.ThrowIfNull(option);
 
-        OptionsDropdownBuilder builder = new();
-        configure(builder);
+        ValidateOptionLabel(option.Label, "Dropdown");
+        ValidateDropdownItems(option.Items);
 
-        OptionsDropdownRegistration registration = builder.Build();
-        int id = GetOrCreateOptionId(tab, registration.Label);
-        string key = GetCustomOptionKey(tab, registration.Label);
+        int id = GetOrCreateOptionId(option.Tab, option.Label);
+        string key = ResolveSaveKey(option.SaveKey, option.Label);
 
-        int maxIndex = registration.Items.Length - 1;
+        int maxIndex = option.Items.Count - 1;
+        int defaultValue = Mathf.Clamp(option.DefaultValue, 0, maxIndex);
+
         Func<int> getValue;
         Action<int> setValue;
 
-        if (registration.TrackInResource)
+        // Mode A: option manages its own value in inline custom JSON storage.
+        if (option.SaveInCustomValues)
         {
-            int defaultValue = registration.HasDefault
-                ? registration.DefaultValue
-                : registration.GetValue != null
-                    ? registration.GetValue()
-                    : 0;
-
             int trackedValue = Mathf.Clamp(GetOrCreateDropdownValue(key, defaultValue), 0, maxIndex);
             SetCustomDropdownValue(key, trackedValue);
-            registration.SetValue?.Invoke(trackedValue);
+            option.SetValue(trackedValue);
 
             getValue = () =>
             {
@@ -423,111 +226,89 @@ public partial class OptionsManager : IDisposable
 
             setValue = value =>
             {
-                int clamped = Mathf.Clamp(value, 0, maxIndex);
-                SetCustomDropdownValue(key, clamped);
-                registration.SetValue?.Invoke(clamped);
+                int clampedValue = Mathf.Clamp(value, 0, maxIndex);
+                SetCustomDropdownValue(key, clampedValue);
+                option.SetValue(clampedValue);
             };
         }
         else
         {
+            // Mode B: option is bound to typed settings (for example ResourceOptions.Difficulty).
             RemoveCustomOptionValue(key);
 
-            if (registration.GetValue == null || registration.SetValue == null)
-                throw new InvalidOperationException("Dropdown with TrackInResource(false) requires getter and setter.");
-
-            if (!_optionsLoadedFromDisk && registration.HasDefault)
+            // On first run, seed typed settings with default once.
+            if (!_loadedFromExistingOptionsFile)
             {
-                int defaultClamped = Mathf.Clamp(registration.DefaultValue, 0, maxIndex);
-                registration.SetValue(defaultClamped);
+                option.SetValue(defaultValue);
             }
 
             getValue = () =>
             {
-                int value = registration.GetValue();
+                int value = option.GetValue();
                 return Mathf.Clamp(value, 0, maxIndex);
             };
 
             setValue = value =>
             {
-                int clamped = Mathf.Clamp(value, 0, maxIndex);
-                registration.SetValue(clamped);
+                int clampedValue = Mathf.Clamp(value, 0, maxIndex);
+                option.SetValue(clampedValue);
             };
         }
 
-        OptionsDropdownDefinition dropdown = new(
-            id,
-            tab,
-            registration.Label,
-            getValue,
-            setValue,
-            registration.Items,
-            registration.Order);
-
+        RegisteredDropdownOption dropdown = new(id, option, getValue, setValue);
         _customSliderOptions.Remove(id);
         _customLineEditOptions.Remove(id);
         _customDropdownOptions[id] = dropdown;
         DropdownOptionRegistered?.Invoke(dropdown);
     }
 
-    public void AddLineEdit(OptionsTab tab, Action<OptionsLineEditBuilder> configure)
+    /// <summary>
+    /// Registers a custom line edit option class.
+    /// </summary>
+    public void AddLineEdit(LineEditOptionDefinition option)
     {
-        ArgumentNullException.ThrowIfNull(configure);
+        ArgumentNullException.ThrowIfNull(option);
 
-        OptionsLineEditBuilder builder = new();
-        configure(builder);
+        ValidateOptionLabel(option.Label, "LineEdit");
 
-        OptionsLineEditRegistration registration = builder.Build();
-        int id = GetOrCreateOptionId(tab, registration.Label);
-        string key = GetCustomOptionKey(tab, registration.Label);
+        int id = GetOrCreateOptionId(option.Tab, option.Label);
+        string key = ResolveSaveKey(option.SaveKey, option.Label);
+        string defaultValue = option.DefaultValue ?? string.Empty;
 
         Func<string> getValue;
         Action<string> setValue;
 
-        if (registration.TrackInResource)
+        // Mode A: option manages its own value in inline custom JSON storage.
+        if (option.SaveInCustomValues)
         {
-            string defaultValue = registration.HasDefault
-                ? registration.DefaultValue
-                : registration.GetValue != null
-                    ? registration.GetValue() ?? string.Empty
-                    : string.Empty;
-
             string trackedValue = GetOrCreateLineEditValue(key, defaultValue);
             SetCustomLineEditValue(key, trackedValue);
-            registration.SetValue?.Invoke(trackedValue);
+            option.SetValue(trackedValue);
 
             getValue = () => GetOrCreateLineEditValue(key, defaultValue);
             setValue = value =>
             {
                 string sanitized = value ?? string.Empty;
                 SetCustomLineEditValue(key, sanitized);
-                registration.SetValue?.Invoke(sanitized);
+                option.SetValue(sanitized);
             };
         }
         else
         {
+            // Mode B: option is bound to typed settings (for example ResourceOptions.PlayerName).
             RemoveCustomOptionValue(key);
 
-            if (registration.GetValue == null || registration.SetValue == null)
-                throw new InvalidOperationException("LineEdit with TrackInResource(false) requires getter and setter.");
-
-            if (!_optionsLoadedFromDisk && registration.HasDefault)
+            // On first run, seed typed settings with default once.
+            if (!_loadedFromExistingOptionsFile)
             {
-                registration.SetValue(registration.DefaultValue ?? string.Empty);
+                option.SetValue(defaultValue);
             }
 
-            getValue = () => registration.GetValue() ?? string.Empty;
-            setValue = value => registration.SetValue(value ?? string.Empty);
+            getValue = () => option.GetValue() ?? string.Empty;
+            setValue = value => option.SetValue(value ?? string.Empty);
         }
 
-        OptionsLineEditDefinition lineEdit = new(
-            id,
-            tab,
-            registration.Label,
-            getValue,
-            setValue,
-            registration.Placeholder,
-            registration.Order);
-
+        RegisteredLineEditOption lineEdit = new(id, option, getValue, setValue);
         _customSliderOptions.Remove(id);
         _customDropdownOptions.Remove(id);
         _customLineEditOptions[id] = lineEdit;
@@ -546,11 +327,47 @@ public partial class OptionsManager : IDisposable
         return id;
     }
 
-    private static string GetCustomOptionKey(OptionsTab tab, string label)
+    private static void ValidateOptionLabel(string label, string optionType)
     {
-        return NormalizeCustomOptionName(label);
+        if (string.IsNullOrWhiteSpace(label))
+            throw new ArgumentException($"{optionType} label cannot be empty.");
     }
 
+    private static void ValidateDropdownItems(IReadOnlyList<string> items)
+    {
+        if (items == null || items.Count == 0)
+            throw new ArgumentException("Dropdown must define at least one item.");
+
+        foreach (string item in items)
+        {
+            if (string.IsNullOrWhiteSpace(item))
+                throw new ArgumentException("Dropdown items cannot be empty.");
+        }
+    }
+
+    private static void ValidateSliderRange(double minValue, double maxValue, double step)
+    {
+        if (maxValue <= minValue)
+            throw new ArgumentException("Slider max value must be greater than min value.");
+
+        if (step <= 0)
+            throw new ArgumentException("Slider step must be greater than 0.");
+    }
+
+    /// <summary>
+    /// Chooses which key string should be used to save a custom option.
+    /// </summary>
+    private static string ResolveSaveKey(string saveKey, string label)
+    {
+        string keySource = string.IsNullOrWhiteSpace(saveKey)
+            ? label
+            : saveKey;
+
+        return ToPascalCaseKey(keySource);
+    }
+
+    // Read custom slider value from inline JSON storage.
+    // If missing/invalid, seed with default and return default.
     private float GetOrCreateSliderValue(string key, float defaultValue)
     {
         Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
@@ -576,6 +393,8 @@ public partial class OptionsManager : IDisposable
         return defaultValue;
     }
 
+    // Read custom dropdown index from inline JSON storage.
+    // If missing/invalid, seed with default and return default.
     private int GetOrCreateDropdownValue(string key, int defaultValue)
     {
         Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
@@ -601,6 +420,8 @@ public partial class OptionsManager : IDisposable
         return defaultValue;
     }
 
+    // Read custom text value from inline JSON storage.
+    // If missing/invalid, seed with default and return default.
     private string GetOrCreateLineEditValue(string key, string defaultValue)
     {
         Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
@@ -622,37 +443,42 @@ public partial class OptionsManager : IDisposable
         return sanitized;
     }
 
+    // Persist custom slider value under a single inline JSON key.
     private void SetCustomSliderValue(string key, float value)
     {
         Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
         values[key] = JsonSerializer.SerializeToElement(value);
     }
 
+    // Persist custom dropdown index under a single inline JSON key.
     private void SetCustomDropdownValue(string key, int value)
     {
         Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
         values[key] = JsonSerializer.SerializeToElement(value);
     }
 
+    // Persist custom text value under a single inline JSON key.
     private void SetCustomLineEditValue(string key, string value)
     {
         Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
         values[key] = JsonSerializer.SerializeToElement(value ?? string.Empty);
     }
 
+    // Removes inline custom value when option is using typed/bound persistence instead.
     private void RemoveCustomOptionValue(string key)
     {
         _options.CustomOptionValues?.Remove(key);
     }
 
-    private static string NormalizeCustomOptionName(string label)
+    /// <summary>
+    /// Converts a label-like value into a JSON-friendly PascalCase key.
+    /// Example: "MOUSE_SENSITIVITY" => "MouseSensitivity".
+    /// </summary>
+    private static string ToPascalCaseKey(string label)
     {
         string source = label ?? string.Empty;
-        int legacyPrefixIndex = source.IndexOf(':');
-        if (legacyPrefixIndex >= 0 && legacyPrefixIndex < source.Length - 1)
-        {
-            source = source[(legacyPrefixIndex + 1)..];
-        }
+        if (string.IsNullOrWhiteSpace(source))
+            return string.Empty;
 
         bool hasSeparator = false;
         foreach (char c in source)
@@ -666,9 +492,6 @@ public partial class OptionsManager : IDisposable
 
         if (!hasSeparator)
         {
-            if (string.IsNullOrWhiteSpace(source))
-                return string.Empty;
-
             bool allUpper = true;
             foreach (char c in source)
             {
@@ -769,12 +592,12 @@ public partial class OptionsManager : IDisposable
         {
             using FileAccess file = FileAccess.Open(PathOptions, FileAccess.ModeFlags.Read);
             _options = JsonSerializer.Deserialize<ResourceOptions>(file.GetAsText()) ?? new();
-            _optionsLoadedFromDisk = true;
+            _loadedFromExistingOptionsFile = true;
         }
         else
         {
             _options = new();
-            _optionsLoadedFromDisk = false;
+            _loadedFromExistingOptionsFile = false;
         }
     }
 
@@ -993,5 +816,3 @@ public partial class OptionsManager : IDisposable
         return Task.CompletedTask;
     }
 }
-
-
