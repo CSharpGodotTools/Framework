@@ -9,7 +9,7 @@ public class OptionsGraphics : IDisposable
     public event Action<int> AntialiasingChanged;
 
     // Fields
-    private ResourceOptions _resourceOptions;
+    private readonly ResourceOptions _resourceOptions;
     private OptionButton _antialiasing;
     private readonly Options _options;
     private readonly OptionButton _optionBtnQualityPreset;
@@ -18,8 +18,8 @@ public class OptionsGraphics : IDisposable
     {
         _options = options;
         _optionBtnQualityPreset = options.GetNode<OptionButton>("%QualityMode");
+        _resourceOptions = GameFramework.Settings;
 
-        GetOptions();
         SetupQualityPreset(graphicsBtn);
         SetupAntialiasing(graphicsBtn);
     }
@@ -29,11 +29,6 @@ public class OptionsGraphics : IDisposable
         _optionBtnQualityPreset.ItemSelected -= OnQualityModeItemSelected;
         _antialiasing.ItemSelected -= OnAntialiasingItemSelected;
         GC.SuppressFinalize(this);
-    }
-
-    private void GetOptions()
-    {
-        _resourceOptions = GameFramework.Options.GetOptions();
     }
 
     private void SetupQualityPreset(Button graphicsBtn)

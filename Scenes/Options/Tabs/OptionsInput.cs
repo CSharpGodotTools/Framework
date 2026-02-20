@@ -1,7 +1,7 @@
 using Godot;
-using Godot.Collections;
 using GodotUtils;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Framework.UI;
@@ -235,14 +235,14 @@ public partial class OptionsInput : IDisposable
             _options = options;
         }
 
-        public Dictionary<StringName, Array<InputEvent>> Actions => _options.GetHotkeys().Actions;
+        public Godot.Collections.Dictionary<StringName, Godot.Collections.Array<InputEvent>> Actions => _options.GetHotkeys().Actions;
 
-        public Array<InputEvent> GetEvents(StringName action)
+        public Godot.Collections.Array<InputEvent> GetEvents(StringName action)
         {
             return Actions[action];
         }
 
-        public System.Collections.Generic.IEnumerable<StringName> GetOrderedActions()
+        public IEnumerable<StringName> GetOrderedActions()
         {
             return Actions.Keys.OrderBy(x => x.ToString());
         }
@@ -263,7 +263,7 @@ public partial class OptionsInput : IDisposable
 
         public bool HasDuplicate(StringName action, InputEvent candidate)
         {
-            Array<InputEvent> events = Actions[action];
+            Godot.Collections.Array<InputEvent> events = Actions[action];
             for (int i = 0; i < events.Count; i++)
             {
                 if (EventsMatch(events[i], candidate))
@@ -280,7 +280,7 @@ public partial class OptionsInput : IDisposable
 
         public static void SuppressAction(StringName action)
         {
-            Array<InputEvent> events = InputMap.ActionGetEvents(action);
+            Godot.Collections.Array<InputEvent> events = InputMap.ActionGetEvents(action);
             for (int i = 0; i < events.Count; i++)
             {
                 InputMap.ActionEraseEvent(action, events[i]);
@@ -289,13 +289,13 @@ public partial class OptionsInput : IDisposable
 
         public void SyncAction(StringName action)
         {
-            Array<InputEvent> existing = InputMap.ActionGetEvents(action);
+            Godot.Collections.Array<InputEvent> existing = InputMap.ActionGetEvents(action);
             for (int i = 0; i < existing.Count; i++)
             {
                 InputMap.ActionEraseEvent(action, existing[i]);
             }
 
-            Array<InputEvent> stored = Actions[action];
+            Godot.Collections.Array<InputEvent> stored = Actions[action];
             for (int i = 0; i < stored.Count; i++)
             {
                 InputMap.ActionAddEvent(action, stored[i]);
@@ -356,7 +356,7 @@ public partial class OptionsInput : IDisposable
         private readonly string _uiPrefix;
         private readonly string _ellipsis;
 
-        private readonly System.Collections.Generic.Dictionary<StringName, HotkeyRow> _rows = [];
+        private readonly Dictionary<StringName, HotkeyRow> _rows = [];
 
         public event Action<HotkeyButtonInfo> HotkeyPressed;
         public event Action<HotkeyButtonInfo> PlusPressed;
@@ -500,7 +500,7 @@ public partial class OptionsInput : IDisposable
 
         public HBoxContainer RowRoot => _rowRoot;
 
-        public void AddBindings(Array<InputEvent> events)
+        public void AddBindings(Godot.Collections.Array<InputEvent> events)
         {
             for (int i = 0; i < events.Count; i++)
             {
@@ -639,3 +639,5 @@ public partial class OptionsInput : IDisposable
         return string.Empty;
     }
 }
+
+

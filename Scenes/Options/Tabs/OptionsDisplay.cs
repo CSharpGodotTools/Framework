@@ -13,7 +13,7 @@ public class OptionsDisplay : IDisposable
     public event Action<int> OnResolutionChanged;
 
     // Fields
-    private ResourceOptions _resourceOptions;
+    private readonly ResourceOptions _resourceOptions;
     private Action<WindowMode> _selectWindowModeAction;
 
     // Window Size
@@ -27,16 +27,20 @@ public class OptionsDisplay : IDisposable
     private readonly Label _labelMaxFpsFeedback;
     private readonly HSlider _resolutionSlider;
     private readonly OptionButton _vsyncMode;
+    private readonly OptionButton _windowMode;
+    private readonly Button _windowSizeApply;
 
     public OptionsDisplay(Options options, Button displayBtn)
     {
-        this._options = options;
+        _options = options;
         _sliderMaxFps = options.GetNode<HSlider>("%MaxFPS");
         _labelMaxFpsFeedback = options.GetNode<Label>("%MaxFPSFeedback");
         _resolutionSlider = options.GetNode<HSlider>("%Resolution");
         _vsyncMode = options.GetNode<OptionButton>("%VSyncMode");
+        _windowMode = options.GetNode<OptionButton>("%WindowMode");
+        _windowSizeApply = options.GetNode<Button>("%WindowSizeApply");
+        _resourceOptions = GameFramework.Settings;
 
-        GetOptions();
         SetupMaxFps(displayBtn);
         SetupWindowSize(displayBtn);
         SetupWindowMode(displayBtn);
@@ -55,17 +59,15 @@ public class OptionsDisplay : IDisposable
         _resY.TextChanged -= OnWindowHeightTextChanged;
         _resY.TextSubmitted -= OnWindowHeightTextSubmitted;
 
+        _windowSizeApply.Pressed -= OnWindowSizeApplyPressed;
+        _windowMode.ItemSelected -= OnWindowModeItemSelected;
+
         GameFramework.Options.WindowModeChanged -= _selectWindowModeAction;
 
         _resolutionSlider.ValueChanged -= OnResolutionValueChanged;
 
         _vsyncMode.ItemSelected -= OnVSyncModeItemSelected;
         GC.SuppressFinalize(this);
-    }
-
-    private void GetOptions()
-    {
-        _resourceOptions = GameFramework.Options.GetOptions();
     }
 
     private void SetupMaxFps(Button displayBtn)
@@ -101,15 +103,14 @@ public class OptionsDisplay : IDisposable
         _resX.Text = winSize.X + "";
         _resY.Text = winSize.Y + "";
 
-        _options.GetNode<Button>("%WindowSizeApply").Pressed += OnWindowSizeApplyPressed;
+        _windowSizeApply.Pressed += OnWindowSizeApplyPressed;
     }
 
     private void SetupWindowMode(Button displayBtn)
     {
-        OptionButton windowModeBtn = _options.GetNode<OptionButton>("%WindowMode");
-        windowModeBtn.ItemSelected += OnWindowModeItemSelected;
-        windowModeBtn.Select((int)_resourceOptions.WindowMode);
-        windowModeBtn.FocusNeighborLeft = displayBtn.GetPath();
+        _windowMode.ItemSelected += OnWindowModeItemSelected;
+        _windowMode.Select((int)_resourceOptions.WindowMode);
+        _windowMode.FocusNeighborLeft = displayBtn.GetPath();
 
         _selectWindowModeAction = SelectWindowMode;
 
@@ -117,13 +118,13 @@ public class OptionsDisplay : IDisposable
 
         void SelectWindowMode(WindowMode windowMode)
         {
-            if (!GodotObject.IsInstanceValid(windowModeBtn))
+            if (!GodotObject.IsInstanceValid(_windowMode))
                 return;
 
             // Window mode select button could be null. If there was no null check
             // here then we would be assuming that the user can only change fullscreen
             // when in the options screen but this is not the case.
-            windowModeBtn.Select((int)windowMode);
+            _windowMode.Select((int)windowMode);
         }
     }
 

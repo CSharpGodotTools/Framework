@@ -7,24 +7,17 @@ namespace Framework.UI;
 public class OptionsGeneral : IDisposable
 {
     // Fields
-    private ResourceOptions _resourceOptions;
+    private readonly ResourceOptions _resourceOptions;
     private readonly Button _generalBtn;
-    private readonly Options _options;
     private readonly OptionButton _languageBtn;
 
     public OptionsGeneral(Options options, Button generalBtn)
     {
-        _options = options;
         _generalBtn = generalBtn;
         _languageBtn = options.GetNode<OptionButton>("%LanguageButton");
+        _resourceOptions = GameFramework.Settings;
 
-        GetOptions();
         SetupLanguage();
-    }
-
-    private void GetOptions()
-    {
-        _resourceOptions = GameFramework.Options.GetOptions();
     }
 
     private void SetupLanguage()

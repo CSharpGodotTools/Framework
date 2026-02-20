@@ -8,11 +8,11 @@ public partial class Options : PanelContainer
     // Fields
     private OptionsNav _optionsNav;
     private OptionsGeneral _optionsGeneral;
-    private OptionsGameplay _optionsGameplay;
     private OptionsDisplay _optionsDisplay;
     private OptionsGraphics _optionsGraphics;
     private OptionsAudio _optionsAudio;
     private OptionsInput _optionsInput;
+    private OptionsCustom _optionsCustom;
     private Node _navNode;
 
     // Godot Overrides
@@ -21,11 +21,11 @@ public partial class Options : PanelContainer
         _navNode = GetNode("%Nav");
         _optionsNav = new OptionsNav(this, GetNode<Label>("%Title"));
         _optionsGeneral = new OptionsGeneral(this, _optionsNav.GeneralButton);
-        _optionsGameplay = new OptionsGameplay(this, _optionsNav.GameplayButton);
         _optionsDisplay = new OptionsDisplay(this, _optionsNav.DisplayButton);
         _optionsGraphics = new OptionsGraphics(this, _optionsNav.GraphicsButton);
         _optionsAudio = new OptionsAudio(this);
         _optionsInput = new OptionsInput(this, _optionsNav.InputButton);
+        _optionsCustom = new OptionsCustom(_optionsNav);
 
         VisibilityChanged += OnVisibilityChanged;
 
@@ -41,11 +41,11 @@ public partial class Options : PanelContainer
     {
         _optionsNav.Dispose();
         _optionsGeneral.Dispose();
-        _optionsGameplay.Dispose();
         _optionsDisplay.Dispose();
         _optionsGraphics.Dispose();
         _optionsAudio.Dispose();
         _optionsInput.Dispose();
+        _optionsCustom.Dispose();
 
         GameFramework.Scene.PostSceneChanged -= OnPostSceneChanged;
         VisibilityChanged -= OnVisibilityChanged;

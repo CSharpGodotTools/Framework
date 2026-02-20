@@ -6,7 +6,7 @@ namespace Framework.UI;
 public partial class OptionsAudio : IDisposable
 {
     // Fields
-    private ResourceOptions _options;
+    private readonly ResourceOptions _options;
     private readonly HSlider _musicSlider;
     private readonly HSlider _sfxSlider;
 
@@ -14,8 +14,8 @@ public partial class OptionsAudio : IDisposable
     {
         _musicSlider = options.GetNode<HSlider>("%Music");
         _sfxSlider = options.GetNode<HSlider>("%Sounds");
+        _options = GameFramework.Settings;
 
-        GetOptions();
         SetupMusic();
         SetupSounds();
     }
@@ -25,11 +25,6 @@ public partial class OptionsAudio : IDisposable
         _musicSlider.ValueChanged -= OnMusicValueChanged;
         _sfxSlider.ValueChanged -= OnSoundsValueChanged;
         GC.SuppressFinalize(this);
-    }
-
-    private void GetOptions()
-    {
-        _options = GameFramework.Options.GetOptions();
     }
 
     private void SetupMusic()

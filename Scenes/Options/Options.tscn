@@ -46,7 +46,6 @@ text = "GENERAL"
 custom_minimum_size = Vector2(150, 60)
 layout_mode = 2
 size_flags_vertical = 3
-focus_neighbor_right = NodePath("../../VBoxContainer/Content/Gameplay/Difficulty/Difficulty")
 text = "GAMEPLAY"
 
 [node name="Display" type="Button" parent="Margin/HBox/Nav" unique_id=1044657690]
@@ -123,42 +122,6 @@ popup/item_2/id = 2
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-
-[node name="Difficulty" type="HBoxContainer" parent="Margin/HBox/VBoxContainer/Content/Gameplay" unique_id=1534119885]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Margin/HBox/VBoxContainer/Content/Gameplay/Difficulty" unique_id=1620811193]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-text = "DIFFICULTY"
-
-[node name="Difficulty" type="OptionButton" parent="Margin/HBox/VBoxContainer/Content/Gameplay/Difficulty" unique_id=1071972146]
-unique_name_in_owner = true
-layout_mode = 2
-selected = 0
-item_count = 3
-popup/item_0/text = "EASY"
-popup/item_0/id = 0
-popup/item_1/text = "NORMAL"
-popup/item_1/id = 1
-popup/item_2/text = "HARD"
-popup/item_2/id = 2
-
-[node name="Sensitivity" type="HBoxContainer" parent="Margin/HBox/VBoxContainer/Content/Gameplay" unique_id=203774995]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Margin/HBox/VBoxContainer/Content/Gameplay/Sensitivity" unique_id=1355017102]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-text = "MOUSE_SENSITIVITY"
-
-[node name="Sensitivity" type="HSlider" parent="Margin/HBox/VBoxContainer/Content/Gameplay/Sensitivity" unique_id=1088342665]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(250, 0)
-layout_mode = 2
-min_value = 1.0
-max_value = 50.0
-value = 25.0
 
 [node name="Display" type="VBoxContainer" parent="Margin/HBox/VBoxContainer/Content" unique_id=338019469]
 unique_name_in_owner = true

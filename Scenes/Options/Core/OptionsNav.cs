@@ -124,6 +124,18 @@ public class OptionsNav : IDisposable
         }
     }
 
+    public bool TryGetTabContainer(OptionsTab tab, out VBoxContainer container)
+    {
+        if (_tabs.TryGetValue(tab.ToString(), out Control tabControl) && tabControl is VBoxContainer tabContainer)
+        {
+            container = tabContainer;
+            return true;
+        }
+
+        container = null;
+        return false;
+    }
+
     // Dispose
     public void Dispose()
     {

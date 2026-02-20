@@ -1,13 +1,16 @@
 using Framework.UI;
 using GodotUtils;
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using QualityP = Framework.UI.QualityPreset;
 using VSyncMode = Godot.DisplayServer.VSyncMode;
 
-// This was intentionally set to GodotUtils instead of __TEMPLATE__ as GodotUtils relies on MainMenuBtnPressed
-// and GodotUtils should NOT have any trace of using Framework.
 namespace Framework;
 
-public class ResourceOptions
+// Keep this class partial so game projects can extend options outside Framework
+// by adding `public partial class ResourceOptions` files in their own folders.
+public partial class ResourceOptions
 {
     // General
     public Language   Language         { get; set; } = Language.English;
@@ -36,8 +39,8 @@ public class ResourceOptions
     public bool       Glow             { get; set; }
     public bool       IndirectLighting { get; set; }
     public bool       Reflections      { get; set; }
-                                                
-    // Gameplay                                 
-    public Difficulty Difficulty       { get; set; } = Difficulty.Normal;
-    public float      MouseSensitivity { get; set; } = 25;
+
+    // Custom options are persisted inline at the root of options.json.
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> CustomOptionValues { get; set; } = [];
 }
