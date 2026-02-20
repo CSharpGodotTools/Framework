@@ -12,16 +12,15 @@ internal sealed class OptionsSettingsStore
     private const string PathOptions = "user://options.json";
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
-    public (ResourceOptions Options, bool LoadedFromExistingFile) Load()
+    public ResourceOptions Load()
     {
         if (FileAccess.FileExists(PathOptions))
         {
             using FileAccess file = FileAccess.Open(PathOptions, FileAccess.ModeFlags.Read);
-            ResourceOptions options = JsonSerializer.Deserialize<ResourceOptions>(file.GetAsText()) ?? new();
-            return (options, true);
+            return JsonSerializer.Deserialize<ResourceOptions>(file.GetAsText()) ?? new();
         }
 
-        return (new ResourceOptions(), false);
+        return new ResourceOptions();
     }
 
     public void Save(ResourceOptions options)

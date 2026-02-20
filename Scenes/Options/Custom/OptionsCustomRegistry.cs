@@ -7,12 +7,11 @@ using System.Text.Json;
 namespace Framework.UI;
 
 /// <summary>
-/// Handles registration and persistence behavior for custom option definitions.
+/// Handles registration and inline JSON persistence for custom option definitions.
 /// </summary>
 internal sealed class OptionsCustomRegistry
 {
-    private ResourceOptions _options;
-    private readonly bool _loadedFromExistingOptionsFile;
+    private readonly ResourceOptions _options;
 
     private readonly Dictionary<int, RegisteredSliderOption> _customSliderOptions = [];
     private readonly Dictionary<int, RegisteredDropdownOption> _customDropdownOptions = [];
@@ -20,10 +19,9 @@ internal sealed class OptionsCustomRegistry
     private readonly Dictionary<(OptionsTab Tab, string Label), int> _customOptionIds = [];
     private int _nextCustomOptionId;
 
-    public OptionsCustomRegistry(ResourceOptions options, bool loadedFromExistingOptionsFile)
+    public OptionsCustomRegistry(ResourceOptions options)
     {
         _options = options;
-        _loadedFromExistingOptionsFile = loadedFromExistingOptionsFile;
     }
 
     public IEnumerable<RegisteredSliderOption> GetSliderOptions()
@@ -49,47 +47,29 @@ internal sealed class OptionsCustomRegistry
         ValidateSliderRange(option.MinValue, option.MaxValue, option.Step);
 
         int id = GetOrCreateOptionId(option.Tab, option.Label);
-        string key = ResolveSaveKey(option.SaveKey, option.Label);
-
-        Func<float> getValue;
-        Action<float> setValue;
+        string key = GetInlineSaveKey(option.Label);
 
         float minValue = (float)option.MinValue;
         float maxValue = (float)option.MaxValue;
         float defaultValue = Mathf.Clamp(option.DefaultValue, minValue, maxValue);
 
-        if (option.SaveInCustomValues)
+        float trackedValue = Mathf.Clamp(GetOrCreateSliderValue(key, defaultValue), minValue, maxValue);
+        SetCustomSliderValue(key, trackedValue);
+        option.SetValue(trackedValue);
+
+        Func<float> getValue = () =>
         {
-            float trackedValue = Mathf.Clamp(GetOrCreateSliderValue(key, defaultValue), minValue, maxValue);
-            SetCustomSliderValue(key, trackedValue);
-            option.SetValue(trackedValue);
+            float value = Mathf.Clamp(GetOrCreateSliderValue(key, defaultValue), minValue, maxValue);
+            SetCustomSliderValue(key, value);
+            return value;
+        };
 
-            getValue = () =>
-            {
-                float value = Mathf.Clamp(GetOrCreateSliderValue(key, defaultValue), minValue, maxValue);
-                SetCustomSliderValue(key, value);
-                return value;
-            };
-
-            setValue = value =>
-            {
-                float clampedValue = Mathf.Clamp(value, minValue, maxValue);
-                SetCustomSliderValue(key, clampedValue);
-                option.SetValue(clampedValue);
-            };
-        }
-        else
+        Action<float> setValue = value =>
         {
-            RemoveCustomOptionValue(key);
-
-            if (!_loadedFromExistingOptionsFile)
-            {
-                option.SetValue(defaultValue);
-            }
-
-            getValue = () => Mathf.Clamp(option.GetValue(), minValue, maxValue);
-            setValue = value => option.SetValue(Mathf.Clamp(value, minValue, maxValue));
-        }
+            float clampedValue = Mathf.Clamp(value, minValue, maxValue);
+            SetCustomSliderValue(key, clampedValue);
+            option.SetValue(clampedValue);
+        };
 
         RegisteredSliderOption slider = new(id, option, getValue, setValue);
         _customDropdownOptions.Remove(id);
@@ -106,46 +86,28 @@ internal sealed class OptionsCustomRegistry
         ValidateDropdownItems(option.Items);
 
         int id = GetOrCreateOptionId(option.Tab, option.Label);
-        string key = ResolveSaveKey(option.SaveKey, option.Label);
+        string key = GetInlineSaveKey(option.Label);
 
         int maxIndex = option.Items.Count - 1;
         int defaultValue = Mathf.Clamp(option.DefaultValue, 0, maxIndex);
 
-        Func<int> getValue;
-        Action<int> setValue;
+        int trackedValue = Mathf.Clamp(GetOrCreateDropdownValue(key, defaultValue), 0, maxIndex);
+        SetCustomDropdownValue(key, trackedValue);
+        option.SetValue(trackedValue);
 
-        if (option.SaveInCustomValues)
+        Func<int> getValue = () =>
         {
-            int trackedValue = Mathf.Clamp(GetOrCreateDropdownValue(key, defaultValue), 0, maxIndex);
-            SetCustomDropdownValue(key, trackedValue);
-            option.SetValue(trackedValue);
+            int value = Mathf.Clamp(GetOrCreateDropdownValue(key, defaultValue), 0, maxIndex);
+            SetCustomDropdownValue(key, value);
+            return value;
+        };
 
-            getValue = () =>
-            {
-                int value = Mathf.Clamp(GetOrCreateDropdownValue(key, defaultValue), 0, maxIndex);
-                SetCustomDropdownValue(key, value);
-                return value;
-            };
-
-            setValue = value =>
-            {
-                int clampedValue = Mathf.Clamp(value, 0, maxIndex);
-                SetCustomDropdownValue(key, clampedValue);
-                option.SetValue(clampedValue);
-            };
-        }
-        else
+        Action<int> setValue = value =>
         {
-            RemoveCustomOptionValue(key);
-
-            if (!_loadedFromExistingOptionsFile)
-            {
-                option.SetValue(defaultValue);
-            }
-
-            getValue = () => Mathf.Clamp(option.GetValue(), 0, maxIndex);
-            setValue = value => option.SetValue(Mathf.Clamp(value, 0, maxIndex));
-        }
+            int clampedValue = Mathf.Clamp(value, 0, maxIndex);
+            SetCustomDropdownValue(key, clampedValue);
+            option.SetValue(clampedValue);
+        };
 
         RegisteredDropdownOption dropdown = new(id, option, getValue, setValue);
         _customSliderOptions.Remove(id);
@@ -161,38 +123,20 @@ internal sealed class OptionsCustomRegistry
         ValidateOptionLabel(option.Label, "LineEdit");
 
         int id = GetOrCreateOptionId(option.Tab, option.Label);
-        string key = ResolveSaveKey(option.SaveKey, option.Label);
+        string key = GetInlineSaveKey(option.Label);
         string defaultValue = option.DefaultValue ?? string.Empty;
 
-        Func<string> getValue;
-        Action<string> setValue;
+        string trackedValue = GetOrCreateLineEditValue(key, defaultValue);
+        SetCustomLineEditValue(key, trackedValue);
+        option.SetValue(trackedValue);
 
-        if (option.SaveInCustomValues)
+        Func<string> getValue = () => GetOrCreateLineEditValue(key, defaultValue);
+        Action<string> setValue = value =>
         {
-            string trackedValue = GetOrCreateLineEditValue(key, defaultValue);
-            SetCustomLineEditValue(key, trackedValue);
-            option.SetValue(trackedValue);
-
-            getValue = () => GetOrCreateLineEditValue(key, defaultValue);
-            setValue = value =>
-            {
-                string sanitized = value ?? string.Empty;
-                SetCustomLineEditValue(key, sanitized);
-                option.SetValue(sanitized);
-            };
-        }
-        else
-        {
-            RemoveCustomOptionValue(key);
-
-            if (!_loadedFromExistingOptionsFile)
-            {
-                option.SetValue(defaultValue);
-            }
-
-            getValue = () => option.GetValue() ?? string.Empty;
-            setValue = value => option.SetValue(value ?? string.Empty);
-        }
+            string sanitized = value ?? string.Empty;
+            SetCustomLineEditValue(key, sanitized);
+            option.SetValue(sanitized);
+        };
 
         RegisteredLineEditOption lineEdit = new(id, option, getValue, setValue);
         _customSliderOptions.Remove(id);
@@ -240,13 +184,9 @@ internal sealed class OptionsCustomRegistry
             throw new ArgumentException("Slider step must be greater than 0.");
     }
 
-    private static string ResolveSaveKey(string saveKey, string label)
+    private static string GetInlineSaveKey(string label)
     {
-        string keySource = string.IsNullOrWhiteSpace(saveKey)
-            ? label
-            : saveKey;
-
-        return ToPascalCaseKey(keySource);
+        return ToPascalCaseKey(label);
     }
 
     private float GetOrCreateSliderValue(string key, float defaultValue)
@@ -336,11 +276,6 @@ internal sealed class OptionsCustomRegistry
     {
         Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
         values[key] = JsonSerializer.SerializeToElement(value ?? string.Empty);
-    }
-
-    private void RemoveCustomOptionValue(string key)
-    {
-        _options.CustomOptionValues?.Remove(key);
     }
 
     private static string ToPascalCaseKey(string label)

@@ -31,8 +31,8 @@ public partial class OptionsManager : IDisposable
     {
         SetupAutoloads(autoloads);
 
-        (_options, bool loadedFromExistingOptionsFile) = _settingsStore.Load();
-        _customRegistry = new OptionsCustomRegistry(_options, loadedFromExistingOptionsFile);
+        _options = _settingsStore.Load();
+        _customRegistry = new OptionsCustomRegistry(_options);
 
         _hotkeysService.Initialize();
 

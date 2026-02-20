@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace Framework.UI;
 
 /// <summary>
@@ -22,76 +20,4 @@ public abstract class AbstractOptionDefinition
     /// Optional ordering inside the tab. Lower numbers are shown first.
     /// </summary>
     public virtual int Order => 0;
-
-    /// <summary>
-    /// Converts a label-like string into a PascalCase save key.
-    /// Examples:
-    /// "MOUSE_SENSITIVITY" => "MouseSensitivity"
-    /// "player name" => "PlayerName"
-    /// </summary>
-    protected static string ToPascalCaseKey(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return string.Empty;
-
-        bool hasSeparator = false;
-        foreach (char character in value)
-        {
-            if (!char.IsLetterOrDigit(character))
-            {
-                hasSeparator = true;
-                break;
-            }
-        }
-
-        if (!hasSeparator)
-        {
-            bool allUpper = true;
-            foreach (char character in value)
-            {
-                if (char.IsLetter(character) && !char.IsUpper(character))
-                {
-                    allUpper = false;
-                    break;
-                }
-            }
-
-            if (allUpper)
-            {
-                string lowered = value.ToLowerInvariant();
-                return char.ToUpperInvariant(lowered[0]) + lowered[1..];
-            }
-
-            return char.ToUpperInvariant(value[0]) + value[1..];
-        }
-
-        StringBuilder result = new();
-        bool capitalizeNext = true;
-
-        foreach (char character in value)
-        {
-            if (!char.IsLetterOrDigit(character))
-            {
-                capitalizeNext = true;
-                continue;
-            }
-
-            if (capitalizeNext)
-            {
-                result.Append(char.ToUpperInvariant(character));
-                capitalizeNext = false;
-            }
-            else
-            {
-                result.Append(char.ToLowerInvariant(character));
-            }
-        }
-
-        return result.ToString();
-    }
-
-    /// <summary>
-    /// Backward-compatible alias for older code.
-    /// </summary>
-    protected static string NormalizePascalCaseKey(string value) => ToPascalCaseKey(value);
 }
