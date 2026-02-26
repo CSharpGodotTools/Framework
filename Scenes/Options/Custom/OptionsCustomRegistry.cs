@@ -57,19 +57,19 @@ internal sealed class OptionsCustomRegistry
         SetCustomSliderValue(key, trackedValue);
         option.SetValue(trackedValue);
 
-        Func<float> getValue = () =>
+        float getValue()
         {
             float value = Mathf.Clamp(GetOrCreateSliderValue(key, defaultValue), minValue, maxValue);
             SetCustomSliderValue(key, value);
             return value;
-        };
+        }
 
-        Action<float> setValue = value =>
+        void setValue(float value)
         {
             float clampedValue = Mathf.Clamp(value, minValue, maxValue);
             SetCustomSliderValue(key, clampedValue);
             option.SetValue(clampedValue);
-        };
+        }
 
         RegisteredSliderOption slider = new(id, option, getValue, setValue);
         _customDropdownOptions.Remove(id);
@@ -95,19 +95,19 @@ internal sealed class OptionsCustomRegistry
         SetCustomDropdownValue(key, trackedValue);
         option.SetValue(trackedValue);
 
-        Func<int> getValue = () =>
+        int getValue()
         {
             int value = Mathf.Clamp(GetOrCreateDropdownValue(key, defaultValue), 0, maxIndex);
             SetCustomDropdownValue(key, value);
             return value;
-        };
+        }
 
-        Action<int> setValue = value =>
+        void setValue(int value)
         {
             int clampedValue = Mathf.Clamp(value, 0, maxIndex);
             SetCustomDropdownValue(key, clampedValue);
             option.SetValue(clampedValue);
-        };
+        }
 
         RegisteredDropdownOption dropdown = new(id, option, getValue, setValue);
         _customSliderOptions.Remove(id);
@@ -130,13 +130,13 @@ internal sealed class OptionsCustomRegistry
         SetCustomLineEditValue(key, trackedValue);
         option.SetValue(trackedValue);
 
-        Func<string> getValue = () => GetOrCreateLineEditValue(key, defaultValue);
-        Action<string> setValue = value =>
+        string getValue() => GetOrCreateLineEditValue(key, defaultValue);
+        void setValue(string value)
         {
             string sanitized = value ?? string.Empty;
             SetCustomLineEditValue(key, sanitized);
             option.SetValue(sanitized);
-        };
+        }
 
         RegisteredLineEditOption lineEdit = new(id, option, getValue, setValue);
         _customSliderOptions.Remove(id);
