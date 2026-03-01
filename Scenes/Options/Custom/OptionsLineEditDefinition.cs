@@ -5,7 +5,7 @@ namespace Framework.UI;
 /// Implement this in game code, then register with:
 /// GameFramework.Options.AddLineEdit(new YourLineEditOption()).
 /// </summary>
-public abstract class LineEditOptionDefinition : AbstractOptionDefinition
+public abstract class LineEditOptionDefinition : OptionDefinition
 {
     /// <summary>
     /// Placeholder text shown in the input field when empty.

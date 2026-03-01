@@ -4,7 +4,7 @@ namespace Framework.UI;
 /// Base type for a custom option that can be shown in the Options UI.
 /// Game projects create small classes that inherit from this.
 /// </summary>
-public abstract class AbstractOptionDefinition
+public abstract class OptionDefinition
 {
     /// <summary>
     /// Which tab this option appears under (Gameplay, Audio, etc).

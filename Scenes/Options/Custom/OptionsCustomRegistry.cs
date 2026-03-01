@@ -1,8 +1,12 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
+
+#nullable enable
 
 namespace Framework.UI;
 
@@ -184,100 +188,170 @@ internal sealed class OptionsCustomRegistry
             throw new ArgumentException("Slider step must be greater than 0.");
     }
 
+    /// <summary>
+    /// Convert an option label to a consistent PascalCase key used when
+    /// storing custom values in <see cref="ResourceOptions.CustomOptionValues"/>.
+    /// </summary>
+    /// <remarks>
+    /// The algorithm matches the behaviour previously implemented by the
+    /// earlier <c>ToPascalCaseKey</c> helper.  It is kept simple so that
+    /// different label formats (spaces, punctuation, all‑upper) map to the
+    /// same identifier.
+    /// </remarks>
     private static string GetInlineSaveKey(string label)
     {
         return ToPascalCaseKey(label);
     }
 
+    /// <summary>
+    /// Read the current value for a slider option, falling back to the default
+    /// and ensuring an entry exists in the custom dictionary if nothing was
+    /// previously stored.
+    /// </summary>
     private float GetOrCreateSliderValue(string key, float defaultValue)
     {
-        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
-
-        if (values.TryGetValue(key, out JsonElement element))
+        return GetOrCreateCustomValue(key, defaultValue, element =>
         {
             if (element.ValueKind == JsonValueKind.Number)
             {
                 if (element.TryGetSingle(out float number))
-                    return number;
-
+                    return (true, number);
                 if (element.TryGetDouble(out double numberDouble))
-                    return (float)numberDouble;
+                    return (true, (float)numberDouble);
             }
-            else if (element.ValueKind == JsonValueKind.String
-                && float.TryParse(element.GetString(), out float parsed))
+            else if (element.ValueKind == JsonValueKind.String &&
+                float.TryParse(element.GetString(), out float parsed))
             {
-                return parsed;
+                return (true, parsed);
             }
-        }
 
-        SetCustomSliderValue(key, defaultValue);
-        return defaultValue;
+            return (false, defaultValue);
+        });
     }
 
+    /// <summary>
+    /// Read the current value for a dropdown option.  See
+    /// <see cref="GetOrCreateSliderValue"/> for behaviour comments.
+    /// </summary>
     private int GetOrCreateDropdownValue(string key, int defaultValue)
     {
-        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
-
-        if (values.TryGetValue(key, out JsonElement element))
+        return GetOrCreateCustomValue(key, defaultValue, element =>
         {
             if (element.ValueKind == JsonValueKind.Number)
             {
                 if (element.TryGetInt32(out int number))
-                    return number;
-
+                    return (true, number);
                 if (element.TryGetDouble(out double numberDouble))
-                    return (int)numberDouble;
+                    return (true, (int)numberDouble);
             }
-            else if (element.ValueKind == JsonValueKind.String
-                && int.TryParse(element.GetString(), out int parsed))
+            else if (element.ValueKind == JsonValueKind.String &&
+                     int.TryParse(element.GetString(), out int parsed))
             {
-                return parsed;
+                return (true, parsed);
             }
-        }
 
-        SetCustomDropdownValue(key, defaultValue);
-        return defaultValue;
+            return (false, defaultValue);
+        });
     }
 
+    /// <summary>
+    /// Read or create a line-edit value (a simple string) from the options
+    /// store.  Converts the stored JSON value to text and ensures the
+    /// dictionary contains an entry afterwards.
+    /// </summary>
     private string GetOrCreateLineEditValue(string key, string defaultValue)
     {
-        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
-
-        if (values.TryGetValue(key, out JsonElement element))
+        // defaultValue is guaranteed non-null by callers.
+        return GetOrCreateCustomValue<string>(key, defaultValue, element =>
         {
-            return element.ValueKind switch
+            // GetRawText returns the JSON literal; strip wrapping quotes if present.
+            string raw = element.GetRawText();
+            if (raw.Length >= 2 && raw[0] == '"' && raw[^1] == '"')
             {
-                JsonValueKind.String => element.GetString() ?? string.Empty,
-                JsonValueKind.Number => element.GetRawText(),
-                JsonValueKind.True => "true",
-                JsonValueKind.False => "false",
-                _ => defaultValue ?? string.Empty
-            };
-        }
-
-        string sanitized = defaultValue ?? string.Empty;
-        SetCustomLineEditValue(key, sanitized);
-        return sanitized;
+                raw = raw.Substring(1, raw.Length - 2);
+            }
+            return (true, raw);
+        });
     }
 
     private void SetCustomSliderValue(string key, float value)
     {
-        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
-        values[key] = JsonSerializer.SerializeToElement(value);
+        SetCustomValue(key, value);
     }
 
     private void SetCustomDropdownValue(string key, int value)
     {
-        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
-        values[key] = JsonSerializer.SerializeToElement(value);
+        SetCustomValue(key, value);
     }
 
     private void SetCustomLineEditValue(string key, string value)
     {
-        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
-        values[key] = JsonSerializer.SerializeToElement(value ?? string.Empty);
+        SetCustomValue(key, value ?? string.Empty);
     }
 
+    /// <summary>
+    /// If <see cref="ResourceOptions"/> exposes a public property with the
+    /// given name return its current value.  Used to prefer typed properties
+    /// over the custom dictionary when both exist.
+    /// </summary>
+    private bool TryGetOptionsProperty(string key, out object? value)
+    {
+        PropertyInfo? prop = typeof(ResourceOptions).GetProperty(key);
+        if (prop != null)
+        {
+            value = prop.GetValue(_options);
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Attempt to extract a value from a JSON element using the provided
+    /// parser.  If the key does not exist in the custom dictionary the
+    /// default value is returned and the dictionary is populated with that
+    /// default.
+    /// </summary>
+    private T GetOrCreateCustomValue<T>(string key, T defaultValue, Func<JsonElement, (bool success, T value)> tryParse)
+    {
+        // prefer typed property if present
+        if (TryGetOptionsProperty(key, out object? raw) && raw is T t)
+            return t;
+
+        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
+
+        if (values.TryGetValue(key, out JsonElement element))
+        {
+            (bool ok, T val) = tryParse(element);
+            if (ok)
+                return val;
+        }
+
+        // missing or invalid; store default and return it
+        SetCustomValue(key, defaultValue);
+        return defaultValue;
+    }
+
+    /// <summary>
+    /// Store a value in the custom-options dictionary unless a typed property
+    /// already handles the key.
+    /// </summary>
+    private void SetCustomValue<T>(string key, T value)
+    {
+        if (TryGetOptionsProperty(key, out _))
+            return; // property takes precedence
+
+        Dictionary<string, JsonElement> values = _options.CustomOptionValues ??= [];
+        values[key] = JsonSerializer.SerializeToElement(value);
+    }
+
+
+    /// <summary>
+    /// Convert a human-readable label into a clean PascalCase identifier suitable
+    /// for use as a dictionary key.  Preserves existing behaviour from before
+    /// this refactor.
+    /// </summary>
     private static string ToPascalCaseKey(string label)
     {
         string source = label ?? string.Empty;

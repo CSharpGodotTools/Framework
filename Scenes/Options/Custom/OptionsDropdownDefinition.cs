@@ -7,7 +7,7 @@ namespace Framework.UI;
 /// Implement this in game code, then register with:
 /// GameFramework.Options.AddDropdown(new YourDropdownOption()).
 /// </summary>
-public abstract class DropdownOptionDefinition : AbstractOptionDefinition
+public abstract class DropdownOptionDefinition : OptionDefinition
 {
     /// <summary>
     /// Display items for the dropdown, in index order.

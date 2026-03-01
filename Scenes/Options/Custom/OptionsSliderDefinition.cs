@@ -15,7 +15,7 @@ public enum OptionsTab
 /// Implement this in game code, then register with:
 /// GameFramework.Options.AddSlider(new YourSliderOption()).
 /// </summary>
-public abstract class SliderOptionDefinition : AbstractOptionDefinition
+public abstract class SliderOptionDefinition : OptionDefinition
 {
     /// <summary>
     /// Minimum value allowed by the UI slider.
