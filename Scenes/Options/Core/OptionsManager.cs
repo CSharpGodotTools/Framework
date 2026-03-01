@@ -17,6 +17,7 @@ public partial class OptionsManager : IDisposable
     internal event Action<RegisteredSliderOption> SliderOptionRegistered;
     internal event Action<RegisteredDropdownOption> DropdownOptionRegistered;
     internal event Action<RegisteredLineEditOption> LineEditOptionRegistered;
+    internal event Action<RegisteredToggleOption> ToggleOptionRegistered;
 
     // Fields
     private readonly OptionsSettingsStore _settingsStore = new();
@@ -101,6 +102,11 @@ public partial class OptionsManager : IDisposable
         return _customRegistry.GetLineEditOptions();
     }
 
+    internal IEnumerable<RegisteredToggleOption> GetToggleOptions()
+    {
+        return _customRegistry.GetToggleOptions();
+    }
+
     /// <summary>
     /// Registers a custom slider option class.
     /// </summary>
@@ -126,6 +132,15 @@ public partial class OptionsManager : IDisposable
     {
         RegisteredLineEditOption lineEdit = _customRegistry.AddLineEdit(option);
         LineEditOptionRegistered?.Invoke(lineEdit);
+    }
+
+    /// <summary>
+    /// Registers a custom boolean toggle option class.
+    /// </summary>
+    public void AddToggle(ToggleOptionDefinition option)
+    {
+        RegisteredToggleOption toggle = _customRegistry.AddToggle(option);
+        ToggleOptionRegistered?.Invoke(toggle);
     }
 
     private void ToggleFullscreen()

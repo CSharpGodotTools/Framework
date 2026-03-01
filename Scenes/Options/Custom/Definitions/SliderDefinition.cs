@@ -1,15 +1,5 @@
 namespace Framework.UI;
 
-public enum OptionsTab
-{
-    General,
-    Gameplay,
-    Display,
-    Graphics,
-    Audio,
-    Input
-}
-
 /// <summary>
 /// Class-based definition for a custom slider option.
 /// Implement this in game code, then register with:
