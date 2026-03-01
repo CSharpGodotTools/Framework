@@ -85,7 +85,9 @@ internal static class CustomOptionSetup
             _ => null
         };
 
-        Debug.Assert(result != null, $"Unsupported OptionsTab: {tab}");
+        if (result == null)
+            throw new NotSupportedException($"Unsupported OptionsTab: {tab}");
+
         return result;
     }
 }

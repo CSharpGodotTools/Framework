@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 
 namespace Framework.UI;
 
@@ -17,7 +18,8 @@ internal static class OptionValueParsers
         }
 
         if (element.ValueKind == JsonValueKind.String &&
-            float.TryParse(element.GetString(), out float parsed))
+            float.TryParse(element.GetString(), NumberStyles.Float | NumberStyles.AllowThousands,
+                CultureInfo.InvariantCulture, out float parsed))
             return (true, parsed);
 
         return (false, defaultValue);
@@ -32,7 +34,8 @@ internal static class OptionValueParsers
         }
 
         if (element.ValueKind == JsonValueKind.String &&
-            int.TryParse(element.GetString(), out int parsed))
+            int.TryParse(element.GetString(), NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out int parsed))
             return (true, parsed);
 
         return (false, defaultValue);
