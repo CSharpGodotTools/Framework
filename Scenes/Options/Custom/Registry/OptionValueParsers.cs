@@ -38,15 +38,12 @@ internal static class OptionValueParsers
         return (false, defaultValue);
     }
 
-    internal static (bool, string) ParseString(JsonElement element, string _)
+    internal static (bool, string) ParseString(JsonElement element, string defaultValue)
     {
-        // Strip surrounding quotes from the raw JSON token
-        string raw = element.GetRawText();
+        if (element.ValueKind == JsonValueKind.String)
+            return (true, element.GetString()!);
 
-        if (raw.Length >= 2 && raw[0] == '"' && raw[^1] == '"')
-            raw = raw.Substring(1, raw.Length - 2);
-
-        return (true, raw);
+        return (false, defaultValue);
     }
 
     internal static (bool, bool) ParseBool(JsonElement element, bool defaultValue)
