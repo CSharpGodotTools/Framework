@@ -12,13 +12,11 @@ public partial class World : Node
     public override void _Ready()
     {
         _net = new Net(new ClientFactory(), new ServerFactory());
-
-        _net.StartServer(25565, 100, new ENetOptions
-        {
-            PrintPacketByteSize = false
-        });
+        _net.StartServer(25565, 100);
+        _net.StartClient("127.0.0.1", 25565);
     }
 
+    #region Factories
     private class ClientFactory : IGameClientFactory
     {
         public GodotClient CreateClient() => new GameClient();
@@ -28,4 +26,5 @@ public partial class World : Node
     {
         public GodotServer CreateServer() => new GameServer();
     }
+    #endregion
 }

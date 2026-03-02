@@ -57,12 +57,12 @@ public class Net : IDisposable
     /// <summary>
     /// Creates and starts a new server instance.
     /// </summary>
-    public void StartServer(ushort port, int maxClients, ENetOptions options)
+    public void StartServer(ushort port, int maxClients, ENetOptions options = null)
     {
+        options ??= _defaultClientOptions;
+
         if (!CanUseENet())
-        {
             return;
-        }
 
         if (Server.IsRunning)
         {
