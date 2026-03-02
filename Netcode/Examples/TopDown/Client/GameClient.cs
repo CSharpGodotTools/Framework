@@ -1,4 +1,3 @@
-using ENet;
 using Framework.Netcode.Client;
 using Godot;
 using System;
@@ -23,16 +22,16 @@ public partial class GameClient : GodotClient
 
     public GameClient()
     {
-        RegisterPacketHandler<SPacketPlayerJoinedLeaved>(OnPlayerJoinedLeaved);
-        RegisterPacketHandler<SPacketPlayerPositions>(OnPlayerPositions);
+        OnPacket<SPacketPlayerJoinedLeaved>(OnPlayerJoinedLeaved);
+        OnPacket<SPacketPlayerPositions>(OnPlayerPositions);
     }
 
-    protected override void OnConnect(Event netEvent)
+    protected override void OnConnected()
     {
         Send(new CPacketPlayerJoinLeave { Joined = true });
     }
 
-    protected override void OnDisconnect(Event netEvent)
+    protected override void OnDisconnected()
     {
         ResetLocalIdentity();
         _remotePositions.Clear();

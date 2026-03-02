@@ -10,6 +10,8 @@ namespace Framework.Netcode;
 /// </summary>
 public abstract class ENetLow
 {
+    protected const byte DefaultChannelId = 0;
+
     protected Host Host { get; set; }
     protected CancellationTokenSource CTS { get; set; }
     protected ENetOptions Options { get; set; }
@@ -162,5 +164,15 @@ public abstract class ENetLow
         }
 
         return $"({bytes} byte{(bytes == 1 ? "" : "s")}) ";
+    }
+
+    /// <summary>
+    /// Creates a reliable ENet packet from a serialized byte buffer.
+    /// </summary>
+    protected static Packet CreateReliablePacket(byte[] data)
+    {
+        Packet packet = default;
+        packet.Create(data, PacketFlags.Reliable);
+        return packet;
     }
 }

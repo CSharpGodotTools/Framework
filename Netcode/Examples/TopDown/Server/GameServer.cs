@@ -1,4 +1,3 @@
-using ENet;
 using Framework.Netcode.Server;
 using Godot;
 using System.Collections.Generic;
@@ -16,61 +15,63 @@ public partial class GameServer : GodotServer
 
     public GameServer()
     {
-        RegisterPacketHandler<CPacketPlayerJoinLeave>(OnPlayerJoinLeave);
-        RegisterPacketHandler<CPacketPlayerPosition>(OnPlayerPosition);
+        OnPacket<CPacketPlayerJoinLeave>(OnPlayerJoinLeave);
+        OnPacket<CPacketPlayerPosition>(OnPlayerPosition);
     }
 
-    protected override void OnPeerDisconnect(Event netEvent)
+    protected override void OnPeerDisconnected(uint peerId)
     {
-        RemovePlayer(netEvent.Peer.ID);
+        RemovePlayer(peerId);
     }
 
-    private void OnPlayerJoinLeave(CPacketPlayerJoinLeave packet, Peer peer)
+    private void OnPlayerJoinLeave(CPacketPlayerJoinLeave packet, uint peerId)
     {
         if (packet.Joined)
         {
-            AddPlayer(peer);
+            AddPlayer(peerId);
         }
         else
         {
-            RemovePlayer(peer.ID);
+            RemovePlayer(peerId);
         }
     }
 
-    private void OnPlayerPosition(CPacketPlayerPosition packet, Peer peer)
+    private void OnPlayerPosition(CPacketPlayerPosition packet, uint peerId)
     {
-        if (!_players.Contains(peer.ID))
+        if (!_players.Contains(peerId))
         {
             return;
         }
 
-        _positions[peer.ID] = packet.Position;
-        BroadcastPositions(force: false, excludedPeer: peer);
+        _positions[peerId] = packet.Position;
+        BroadcastPositions(force: false, excludeId: peerId);
     }
 
-    private void AddPlayer(Peer peer)
+    private void AddPlayer(uint peerId)
     {
-        if (!_players.Add(peer.ID))
+        if (!_players.Add(peerId))
         {
             return;
         }
 
+        // Tell the new player their own ID
         Send(new SPacketPlayerJoinedLeaved
         {
-            Id = peer.ID,
+            Id = peerId,
             Joined = true,
             IsLocal = true
-        }, peer);
+        }, peerId);
 
+        // Tell everyone else about the new player
         Broadcast(new SPacketPlayerJoinedLeaved
         {
-            Id = peer.ID,
+            Id = peerId,
             Joined = true,
             IsLocal = false
-        }, peer);
+        }, peerId);
 
-        SendExistingPlayersTo(peer);
-        SendPositionsSnapshotTo(peer);
+        SendExistingPlayersTo(peerId);
+        SendPositionsSnapshotTo(peerId);
     }
 
     private void RemovePlayer(uint playerId)
@@ -85,38 +86,38 @@ public partial class GameServer : GodotServer
         BroadcastPositions(force: true);
     }
 
-    private void SendExistingPlayersTo(Peer peer)
+    private void SendExistingPlayersTo(uint peerId)
     {
         foreach (uint playerId in _players)
         {
-            if (playerId != peer.ID)
+            if (playerId != peerId)
             {
                 Send(new SPacketPlayerJoinedLeaved
                 {
                     Id = playerId,
                     Joined = true,
                     IsLocal = false
-                }, peer);
+                }, peerId);
             }
         }
     }
 
-    private void SendPositionsSnapshotTo(Peer peer)
+    private void SendPositionsSnapshotTo(uint peerId)
     {
         Dictionary<uint, Vector2> snapshot = [];
 
         foreach (KeyValuePair<uint, Vector2> positionEntry in _positions)
         {
-            if (positionEntry.Key != peer.ID)
+            if (positionEntry.Key != peerId)
             {
                 snapshot[positionEntry.Key] = positionEntry.Value;
             }
         }
 
-        Send(new SPacketPlayerPositions { Positions = snapshot }, peer);
+        Send(new SPacketPlayerPositions { Positions = snapshot }, peerId);
     }
 
-    private void BroadcastPositions(bool force = false, Peer? excludedPeer = null)
+    private void BroadcastPositions(bool force = false, uint excludeId = 0)
     {
         if (!CanBroadcastPositions(force))
         {
@@ -128,9 +129,9 @@ public partial class GameServer : GodotServer
             Positions = new Dictionary<uint, Vector2>(_positions)
         };
 
-        if (excludedPeer.HasValue)
+        if (excludeId > 0)
         {
-            Broadcast(packet, excludedPeer.Value);
+            Broadcast(packet, excludeId);
         }
         else
         {

@@ -372,7 +372,9 @@ public partial class World
 
                 if (!_sentSpawn)
                 {
-                    _client.SendPosition(_center);
+                    Vector2 spawnPos = _center + new Vector2(Mathf.Cos(_angle), Mathf.Sin(_angle)) * _circleRadius;
+                    _client.SendPosition(spawnPos);
+
                     _sentSpawn = true;
                 }
 

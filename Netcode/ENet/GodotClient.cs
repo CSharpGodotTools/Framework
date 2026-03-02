@@ -1,4 +1,3 @@
-using ENet;
 using GodotUtils;
 using System;
 using System.Collections.Concurrent;
@@ -12,7 +11,11 @@ public abstract class GodotClient : ENetClient
     private const string LogTag = "Client";
     private readonly ConcurrentDictionary<Type, Action<ServerPacket>> _serverPacketHandlers = new();
 
-    protected void RegisterPacketHandler<TPacket>(Action<TPacket> handler)
+    /// <summary>
+    /// Registers a handler for a specific server packet type.
+    /// Handlers run on the Godot main thread.
+    /// </summary>
+    protected void OnPacket<TPacket>(Action<TPacket> handler)
         where TPacket : ServerPacket
     {
         ArgumentNullException.ThrowIfNull(handler);
@@ -60,7 +63,6 @@ public abstract class GodotClient : ENetClient
 
         Options = options ?? new ENetOptions();
         InitIgnoredPackets(ignoredPackets);
-        NotifyClientStarting();
 
         CTS = new CancellationTokenSource();
 
@@ -94,7 +96,7 @@ public abstract class GodotClient : ENetClient
             return;
         }
 
-        ENetCmds.Enqueue(new Cmd<ENetClientOpcode>(ENetClientOpcode.Disconnect));
+        RequestDisconnect();
     }
 
     /// <summary>
@@ -111,8 +113,8 @@ public abstract class GodotClient : ENetClient
         }
 
         packet.Write();
-        packet.SetPeer(_peer);
-        Outgoing.Enqueue(packet);
+        LogOutgoing(packet);
+        EnqueueOutgoing(packet.GetData());
     }
 
     /// <summary>
@@ -126,7 +128,7 @@ public abstract class GodotClient : ENetClient
 
     private void ProcessGodotPackets()
     {
-        while (GodotPackets.TryDequeue(out PacketData packetData))
+        while (MainThreadPackets.TryDequeue(out PacketData packetData))
         {
             PacketReader packetReader = packetData.PacketReader;
             ServerPacket packet = packetData.HandlePacket;
@@ -158,7 +160,7 @@ public abstract class GodotClient : ENetClient
 
     private void ProcessGodotCommands()
     {
-        while (GodotCmdsInternal.TryDequeue(out Cmd<GodotOpcode> command))
+        while (MainThreadCommands.TryDequeue(out Cmd<GodotOpcode> command))
         {
             switch (command.Opcode)
             {
@@ -192,6 +194,24 @@ public abstract class GodotClient : ENetClient
         }
 
         Log($"Received packet: {packetType.Name}{packetData}");
+    }
+
+    private void LogOutgoing(ClientPacket packet)
+    {
+        Type packetType = packet.GetType();
+
+        if (!Options.PrintPacketSent || IgnoredPackets.Contains(packetType))
+        {
+            return;
+        }
+
+        string packetData = string.Empty;
+        if (Options.PrintPacketData)
+        {
+            packetData = $"\n{packet.ToFormattedString()}";
+        }
+
+        Log($"Sent packet: {packetType.Name} {FormatByteSize(packet.GetSize())}{packetData}");
     }
 
     private static void TryInvoke(Action action)

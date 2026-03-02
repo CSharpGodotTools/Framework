@@ -3,7 +3,6 @@ using GodotUtils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
@@ -14,25 +13,28 @@ public abstract class ENetServer : ENetLow
 {
     private const string LogTag = "Server";
 
-    protected ConcurrentQueue<Cmd<ENetServerOpcode>> ENetCmds { get; } = new();
-
+    private readonly ConcurrentQueue<Cmd<ENetServerOpcode>> _enetCmds = new();
     private readonly ConcurrentQueue<(Packet Packet, Peer Peer)> _incoming = new();
-    private readonly ConcurrentQueue<ServerPacket> _outgoing = new();
-    private readonly ConcurrentDictionary<Type, Action<ClientPacket, Peer>> _clientPacketHandlers = new();
+    private readonly ConcurrentQueue<OutgoingMessage> _outgoing = new();
+    private readonly ConcurrentDictionary<Type, Action<ClientPacket, uint>> _clientPacketHandlers = new();
 
     /// <summary>
-    /// This dictionary is only accessed on the ENet worker thread.
+    /// Peer lookup. Only accessed on the ENet worker thread.
     /// </summary>
     private readonly Dictionary<uint, Peer> _peers = [];
 
     private readonly ServerLogAggregator _logAggregator = new();
 
-    protected void RegisterPacketHandler<TPacket>(Action<TPacket, Peer> handler)
+    /// <summary>
+    /// Registers a handler for a specific client packet type.
+    /// Handlers run on the ENet worker thread.
+    /// </summary>
+    protected void OnPacket<TPacket>(Action<TPacket, uint> handler)
         where TPacket : ClientPacket
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        _clientPacketHandlers[typeof(TPacket)] = (packet, peer) => handler((TPacket)packet, peer);
+        _clientPacketHandlers[typeof(TPacket)] = (packet, peerId) => handler((TPacket)packet, peerId);
     }
 
     /// <summary>
@@ -49,15 +51,39 @@ public abstract class ENetServer : ENetLow
     /// </summary>
     public void KickAll(DisconnectOpcode opcode)
     {
-        ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.KickAll, opcode));
+        _enetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.KickAll, opcode));
     }
 
     /// <summary>
-    /// Enqueues a server packet for sending on the worker thread.
+    /// Enqueues a send/broadcast command for the worker thread. Thread safe.
     /// </summary>
-    protected void EnqueuePacket(ServerPacket packet)
+    protected void EnqueueOutgoing(OutgoingMessage message)
     {
-        _outgoing.Enqueue(packet);
+        _outgoing.Enqueue(message);
+    }
+
+    /// <summary>
+    /// Requests a graceful server shutdown from any thread. Thread safe.
+    /// </summary>
+    protected void RequestStop()
+    {
+        _enetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.Stop));
+    }
+
+    /// <summary>
+    /// Requests a peer kick from any thread. Thread safe.
+    /// </summary>
+    protected void RequestKick(uint peerId, DisconnectOpcode opcode)
+    {
+        _enetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.Kick, peerId, opcode));
+    }
+
+    /// <summary>
+    /// Requests a kick-all from any thread. Thread safe.
+    /// </summary>
+    protected void RequestKickAll(DisconnectOpcode opcode)
+    {
+        _enetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.KickAll, opcode));
     }
 
     /// <summary>
@@ -81,9 +107,9 @@ public abstract class ENetServer : ENetLow
     }
 
     /// <summary>
-    /// Hook invoked when a connected peer disconnects or times out.
+    /// Called on the worker thread when a peer disconnects or times out.
     /// </summary>
-    protected virtual void OnPeerDisconnect(Event netEvent)
+    protected virtual void OnPeerDisconnected(uint peerId)
     {
     }
 
@@ -186,7 +212,7 @@ public abstract class ENetServer : ENetLow
 
     private void ProcessEnetCommands()
     {
-        while (ENetCmds.TryDequeue(out Cmd<ENetServerOpcode> command))
+        while (_enetCmds.TryDequeue(out Cmd<ENetServerOpcode> command))
         {
             switch (command.Opcode)
             {
@@ -273,13 +299,13 @@ public abstract class ENetServer : ENetLow
                 return;
             }
 
-            if (!_clientPacketHandlers.TryGetValue(packetType, out Action<ClientPacket, Peer> handler))
+            if (!_clientPacketHandlers.TryGetValue(packetType, out Action<ClientPacket, uint> handler))
             {
                 Log($"No handler registered for client packet {packetType.Name} (Ignoring)");
                 return;
             }
 
-            if (!TryInvokePacketHandler(handler, packet, peer))
+            if (!TryInvokePacketHandler(handler, packet, peer.ID))
             {
                 return;
             }
@@ -333,11 +359,11 @@ public abstract class ENetServer : ENetLow
         }
     }
 
-    private static bool TryInvokePacketHandler(Action<ClientPacket, Peer> handler, ClientPacket packet, Peer peer)
+    private static bool TryInvokePacketHandler(Action<ClientPacket, uint> handler, ClientPacket packet, uint peerId)
     {
         try
         {
-            handler(packet, peer);
+            handler(packet, peerId);
             return true;
         }
         catch (Exception exception)
@@ -365,16 +391,17 @@ public abstract class ENetServer : ENetLow
 
     private void HandlePeerDisconnected(Event netEvent, Action<uint> logEvent)
     {
-        _peers.Remove(netEvent.Peer.ID);
-        TryInvokePeerDisconnect(netEvent);
-        logEvent(netEvent.Peer.ID);
+        uint peerId = netEvent.Peer.ID;
+        _peers.Remove(peerId);
+        TryInvokePeerDisconnected(peerId);
+        logEvent(peerId);
     }
 
-    private void TryInvokePeerDisconnect(Event netEvent)
+    private void TryInvokePeerDisconnected(uint peerId)
     {
         try
         {
-            OnPeerDisconnect(netEvent);
+            OnPeerDisconnected(peerId);
         }
         catch (Exception exception)
         {
@@ -384,20 +411,17 @@ public abstract class ENetServer : ENetLow
 
     private void ProcessOutgoingPackets()
     {
-        while (_outgoing.TryDequeue(out ServerPacket packet))
+        while (_outgoing.TryDequeue(out OutgoingMessage message))
         {
             try
             {
-                SendType sendType = packet.GetSendType();
-                switch (sendType)
+                if (message.IsBroadcast)
                 {
-                    case SendType.Peer:
-                        packet.Send();
-                        break;
-
-                    case SendType.Broadcast:
-                        packet.Broadcast(Host);
-                        break;
+                    SendBroadcast(message);
+                }
+                else
+                {
+                    SendUnicast(message);
                 }
             }
             catch (Exception exception)
@@ -407,187 +431,75 @@ public abstract class ENetServer : ENetLow
         }
     }
 
-    private sealed class ServerLogAggregator
+    private void SendUnicast(OutgoingMessage message)
     {
-        private const double QuietGapSeconds = 0.5;
-        private const double MaxWindowSeconds = 5.0;
-
-        private int _connectedCount;
-        private int _disconnectedCount;
-        private int _timeoutCount;
-
-        private long _windowStartTicks;
-        private long _lastEventTicks;
-
-        private long _lastConnectTicks;
-        private long _lastDisconnectTicks;
-        private long _lastTimeoutTicks;
-        private uint _lastConnectPeerId;
-        private uint _lastDisconnectPeerId;
-        private uint _lastTimeoutPeerId;
-
-        /// <summary>
-        /// Records a connect lifecycle event.
-        /// </summary>
-        public void RecordConnect(uint peerId)
+        if (!_peers.TryGetValue(message.TargetPeerId, out Peer peer))
         {
-            _connectedCount++;
-            _lastConnectPeerId = peerId;
-            MarkEvent(ref _lastConnectTicks);
+            return;
+        }
+
+        Packet enetPacket = CreateReliablePacket(message.Data);
+        peer.Send(DefaultChannelId, ref enetPacket);
+    }
+
+    private void SendBroadcast(OutgoingMessage message)
+    {
+        Packet enetPacket = CreateReliablePacket(message.Data);
+
+        if (message.HasExclusion && _peers.TryGetValue(message.ExcludePeerId, out Peer excludePeer))
+        {
+            Host.Broadcast(DefaultChannelId, ref enetPacket, excludePeer);
+        }
+        else
+        {
+            Host.Broadcast(DefaultChannelId, ref enetPacket);
+        }
+    }
+
+    /// <summary>
+    /// Describes unit of work queued for the server worker thread.
+    /// </summary>
+    protected readonly struct OutgoingMessage
+    {
+        public byte[] Data { get; }
+        public bool IsBroadcast { get; }
+        public uint TargetPeerId { get; }
+        public uint ExcludePeerId { get; }
+        public bool HasExclusion { get; }
+
+        private OutgoingMessage(
+            byte[] data, bool isBroadcast,
+            uint targetPeerId, uint excludePeerId, bool hasExclusion)
+        {
+            Data = data;
+            IsBroadcast = isBroadcast;
+            TargetPeerId = targetPeerId;
+            ExcludePeerId = excludePeerId;
+            HasExclusion = hasExclusion;
         }
 
         /// <summary>
-        /// Records a disconnect lifecycle event.
+        /// Creates a message targeting a single peer.
         /// </summary>
-        public void RecordDisconnect(uint peerId)
+        public static OutgoingMessage Unicast(byte[] data, uint peerId)
         {
-            _disconnectedCount++;
-            _lastDisconnectPeerId = peerId;
-            MarkEvent(ref _lastDisconnectTicks);
+            return new OutgoingMessage(data, false, peerId, 0, false);
         }
 
         /// <summary>
-        /// Records a timeout lifecycle event.
+        /// Creates a broadcast message to all connected peers.
         /// </summary>
-        public void RecordTimeout(uint peerId)
+        public static OutgoingMessage Broadcast(byte[] data)
         {
-            _timeoutCount++;
-            _lastTimeoutPeerId = peerId;
-            MarkEvent(ref _lastTimeoutTicks);
+            return new OutgoingMessage(data, true, 0, 0, false);
         }
 
         /// <summary>
-        /// Emits a coalesced lifecycle log report when burst thresholds are reached.
+        /// Creates a broadcast message excluding one peer.
         /// </summary>
-        public void Flush(Action<string> log)
+        public static OutgoingMessage BroadcastExcept(byte[] data, uint excludeId)
         {
-            if (_connectedCount == 0 && _disconnectedCount == 0 && _timeoutCount == 0)
-            {
-                return;
-            }
-
-            if (_windowStartTicks == 0 || _lastEventTicks == 0)
-            {
-                return;
-            }
-
-            long nowTicks = Stopwatch.GetTimestamp();
-            double sinceLast = (nowTicks - _lastEventTicks) / (double)Stopwatch.Frequency;
-            double windowSeconds = (_lastEventTicks - _windowStartTicks) / (double)Stopwatch.Frequency;
-
-            if (sinceLast < QuietGapSeconds && windowSeconds < MaxWindowSeconds)
-            {
-                return;
-            }
-
-            int connects = _connectedCount;
-            int disconnects = _disconnectedCount;
-            int timeouts = _timeoutCount;
-            long lastConnectTicks = _lastConnectTicks;
-            long lastDisconnectTicks = _lastDisconnectTicks;
-            long lastTimeoutTicks = _lastTimeoutTicks;
-            uint lastConnectPeerId = _lastConnectPeerId;
-            uint lastDisconnectPeerId = _lastDisconnectPeerId;
-            uint lastTimeoutPeerId = _lastTimeoutPeerId;
-
-            _connectedCount = 0;
-            _disconnectedCount = 0;
-            _timeoutCount = 0;
-            _windowStartTicks = 0;
-            _lastEventTicks = 0;
-            _lastConnectTicks = 0;
-            _lastDisconnectTicks = 0;
-            _lastTimeoutTicks = 0;
-            _lastConnectPeerId = 0;
-            _lastDisconnectPeerId = 0;
-            _lastTimeoutPeerId = 0;
-
-            double reportSeconds = Math.Max(windowSeconds, 0.01);
-            List<(long Tick, Action LogAction)> logEntries = new(3);
-
-            if (connects > 0)
-            {
-                logEntries.Add((lastConnectTicks, () => log(FormatConnectMessage(connects, lastConnectPeerId, reportSeconds))));
-            }
-
-            if (disconnects > 0)
-            {
-                logEntries.Add((lastDisconnectTicks, () => log(FormatDisconnectMessage(disconnects, lastDisconnectPeerId, reportSeconds))));
-            }
-
-            if (timeouts > 0)
-            {
-                logEntries.Add((lastTimeoutTicks, () => log(FormatTimeoutMessage(timeouts, lastTimeoutPeerId, reportSeconds))));
-            }
-
-            logEntries.Sort(static (left, right) => left.Tick.CompareTo(right.Tick));
-
-            foreach ((long Tick, Action LogAction) in logEntries)
-            {
-                LogAction();
-            }
-        }
-
-        private void MarkEvent(ref long eventTypeLastTicks)
-        {
-            long nowTicks = Stopwatch.GetTimestamp();
-            if (_windowStartTicks == 0)
-            {
-                _windowStartTicks = nowTicks;
-            }
-
-            _lastEventTicks = nowTicks;
-            eventTypeLastTicks = nowTicks;
-        }
-
-        private static string FormatCount(string singular, int count)
-        {
-            if (count == 1)
-            {
-                return $"1 {singular}";
-            }
-
-            return $"{count} {singular}s";
-        }
-
-        private static string FormatLastSuffix(int count, double seconds)
-        {
-            if (count == 1)
-            {
-                return string.Empty;
-            }
-
-            return $" (last {seconds:0.##}s)";
-        }
-
-        private static string FormatConnectMessage(int count, uint peerId, double seconds)
-        {
-            if (count == 1)
-            {
-                return $"Client with id {peerId} connected";
-            }
-
-            return $"{FormatCount("client", count)} connected{FormatLastSuffix(count, seconds)}";
-        }
-
-        private static string FormatDisconnectMessage(int count, uint peerId, double seconds)
-        {
-            if (count == 1)
-            {
-                return $"Client with id {peerId} disconnected";
-            }
-
-            return $"{FormatCount("client", count)} disconnected{FormatLastSuffix(count, seconds)}";
-        }
-
-        private static string FormatTimeoutMessage(int count, uint peerId, double seconds)
-        {
-            if (count == 1)
-            {
-                return $"Client with id {peerId} timed out";
-            }
-
-            return $"{FormatCount("client", count)} timed out{FormatLastSuffix(count, seconds)}";
+            return new OutgoingMessage(data, true, 0, excludeId, true);
         }
     }
 }
