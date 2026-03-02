@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace Framework.Netcode;
 
-public class Net : IDisposable
+public class Net<TGameClient, TGameServer> : IDisposable
+    where TGameClient : GodotClient, new()
+    where TGameServer : GodotServer, new()
 {
     private const int ShutdownPollIntervalMs = 50;
 
@@ -18,8 +20,6 @@ public class Net : IDisposable
         PrintPacketSent = false
     };
 
-    private readonly IGameClientFactory _clientFactory;
-    private readonly IGameServerFactory _serverFactory;
     private readonly bool _enetInitialized;
     private long _shutdownStarted;
     private int _disposed;
@@ -39,19 +39,14 @@ public class Net : IDisposable
     /// <summary>
     /// Creates a network coordinator that owns the active server and client instances.
     /// </summary>
-    public Net(IGameClientFactory clientFactory, IGameServerFactory serverFactory)
+    public Net()
     {
-        ArgumentNullException.ThrowIfNull(clientFactory);
-        ArgumentNullException.ThrowIfNull(serverFactory);
-
-        _clientFactory = clientFactory;
-        _serverFactory = serverFactory;
         _enetInitialized = TryInitializeEnet();
 
         Autoloads.Instance.PreQuit += StopThreads;
 
-        Client = _clientFactory.CreateClient();
-        Server = _serverFactory.CreateServer();
+        Client = new TGameClient();
+        Server = new TGameServer();
     }
 
     /// <summary>
@@ -73,7 +68,7 @@ public class Net : IDisposable
         ServerPort = port;
         ServerMaxClients = maxClients;
 
-        Server = _serverFactory.CreateServer();
+        Server = new TGameServer();
         ServerCreated?.Invoke(Server);
         Server.Start(port, maxClients, options);
     }
@@ -102,7 +97,7 @@ public class Net : IDisposable
             return;
         }
 
-        Client = _clientFactory.CreateClient();
+        Client = new TGameClient();
         ClientCreated?.Invoke(Client);
 
         // Fire-and-forget connect (if Connect is async)
