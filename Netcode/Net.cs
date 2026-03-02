@@ -20,7 +20,6 @@ public class Net : IDisposable
 
     private readonly IGameClientFactory _clientFactory;
     private readonly IGameServerFactory _serverFactory;
-    private readonly UI.PopupMenu _popupMenu;
     private readonly bool _enetInitialized;
     private long _shutdownStarted;
     private int _disposed;
@@ -47,11 +46,9 @@ public class Net : IDisposable
 
         _clientFactory = clientFactory;
         _serverFactory = serverFactory;
-        _popupMenu = GameFramework.Services.Get<UI.PopupMenu>();
         _enetInitialized = TryInitializeEnet();
 
         Autoloads.Instance.PreQuit += StopThreads;
-        _popupMenu.MainMenuBtnPressed += OnMainMenuBtnPressed;
 
         Client = _clientFactory.CreateClient();
         Server = _serverFactory.CreateServer();
@@ -220,7 +217,11 @@ public class Net : IDisposable
         }
     }
 
-    private void OnMainMenuBtnPressed()
+
+    /// <summary>
+    /// Request to shutdown the server and client.
+    /// </summary>
+    public void RequestShutdown()
     {
         _stopRequestedByMainMenu = true;
         _ = StopThreads();
@@ -237,7 +238,6 @@ public class Net : IDisposable
         }
 
         Autoloads.Instance.PreQuit -= StopThreads;
-        _popupMenu.MainMenuBtnPressed -= OnMainMenuBtnPressed;
 
         if (!_stopRequestedByMainMenu)
         {

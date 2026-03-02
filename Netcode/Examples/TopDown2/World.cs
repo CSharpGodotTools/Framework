@@ -1,17 +1,31 @@
 using Godot;
-using System;
+using Framework.Netcode.Client;
+using Framework.Netcode.Server;
+using Template.Framework.Netcode.Examples.TopDown2; 
 
-namespace Framework.Netcode.Examples.Topdown2;
+namespace Framework.Netcode.Examples.TopDown2;
 
 public partial class World : Node
 {
-    private Net net;
+    private Net _net;
 
     public override void _Ready()
     {
-        Net.StartServer(25565, 100, new ENetOptions
+        _net = new Net(new ClientFactory(), new ServerFactory());
+
+        _net.StartServer(25565, 100, new ENetOptions
         {
             PrintPacketByteSize = false
         });
+    }
+
+    private class ClientFactory : IGameClientFactory
+    {
+        public GodotClient CreateClient() => new GameClient();
+    }
+
+    private class ServerFactory : IGameServerFactory
+    {
+        public GodotServer CreateServer() => new GameServer();
     }
 }
