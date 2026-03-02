@@ -1,7 +1,5 @@
-using ENet;
 using GodotUtils;
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -75,7 +73,7 @@ public abstract class GodotServer : ENetServer
     /// </summary>
     public void Kick(uint id, DisconnectOpcode opcode)
     {
-        ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.Kick, id, opcode));
+        RequestKick(id, opcode);
     }
 
     /// <summary>
@@ -89,55 +87,55 @@ public abstract class GodotServer : ENetServer
             return;
         }
 
-        ENetCmds.Enqueue(new Cmd<ENetServerOpcode>(ENetServerOpcode.Stop));
+        RequestStop();
     }
 
     /// <summary>
-    /// Send a packet to one client. Thread safe.
+    /// Send a packet to one client by peer ID. Thread safe.
     /// </summary>
-    public void Send(ServerPacket packet, Peer peer)
+    public void Send(ServerPacket packet, uint peerId)
     {
         ArgumentNullException.ThrowIfNull(packet);
 
         packet.Write();
-        LogSend(packet, $"to client {peer.ID}");
-
-        packet.SetSendType(SendType.Peer);
-        packet.SetPeer(peer);
-        EnqueuePacket(packet);
+        LogSend(packet, $"to client {peerId}");
+        EnqueueOutgoing(OutgoingMessage.Unicast(packet.GetData(), peerId));
     }
 
     /// <summary>
-    /// Broadcast a packet to all clients or all except provided peers. Thread safe.
+    /// Broadcast a packet to all connected clients. Thread safe.
     /// </summary>
-    public void Broadcast(ServerPacket packet, params Peer[] clients)
+    public void Broadcast(ServerPacket packet)
     {
         ArgumentNullException.ThrowIfNull(packet);
 
-        Peer[] peers = clients ?? [];
         packet.Write();
-
-        string peerDescription = GetBroadcastPeerDescription(peers);
-        LogSend(packet, peerDescription, includeSeparatorPadding: true);
-
-        packet.SetSendType(SendType.Broadcast);
-        packet.SetPeers(peers);
-        EnqueuePacket(packet);
+        LogSend(packet, "to everyone");
+        EnqueueOutgoing(OutgoingMessage.Broadcast(packet.GetData()));
     }
 
-    private void LogSend(ServerPacket packet, string targetDescription, bool includeSeparatorPadding = false)
+    /// <summary>
+    /// Broadcast a packet to all clients except the specified peer. Thread safe.
+    /// </summary>
+    public void Broadcast(ServerPacket packet, uint excludePeerId)
+    {
+        ArgumentNullException.ThrowIfNull(packet);
+
+        packet.Write();
+        LogSend(packet, $"to everyone except {excludePeerId}");
+        EnqueueOutgoing(OutgoingMessage.BroadcastExcept(packet.GetData(), excludePeerId));
+    }
+
+    private void LogSend(ServerPacket packet, string targetDescription)
     {
         Type packetType = packet.GetType();
+
         if (!Options.PrintPacketSent || IgnoredPackets.Contains(packetType))
         {
             return;
         }
 
         string byteSize = FormatByteSize(packet.GetSize());
-        if (includeSeparatorPadding && string.IsNullOrEmpty(byteSize))
-        {
-            byteSize = " ";
-        }
 
         string packetData = string.Empty;
         if (Options.PrintPacketData)
@@ -146,21 +144,5 @@ public abstract class GodotServer : ENetServer
         }
 
         Log($"Sending packet {packetType.Name} {byteSize}{targetDescription}{packetData}");
-    }
-
-    private static string GetBroadcastPeerDescription(Peer[] peers)
-    {
-        if (peers.Length == 0)
-        {
-            return "to everyone";
-        }
-
-        if (peers.Length == 1)
-        {
-            return $"to everyone except peer {peers[0].ID}";
-        }
-
-        string peerIds = peers.Select(peer => peer.ID).ToFormattedString();
-        return $"to peers {peerIds}";
     }
 }
