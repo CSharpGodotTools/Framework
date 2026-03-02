@@ -11,6 +11,7 @@ public class Net<TGameClient, TGameServer> : IDisposable
     where TGameServer : GodotServer, new()
 {
     private const int ShutdownPollIntervalMs = 50;
+    private const int DefaultMaxClients = 500;
 
     private static readonly ENetOptions _defaultClientOptions = new()
     {
@@ -52,7 +53,7 @@ public class Net<TGameClient, TGameServer> : IDisposable
     /// <summary>
     /// Creates and starts a new server instance.
     /// </summary>
-    public void StartServer(ushort port, int maxClients, ENetOptions options = null)
+    public void StartServer(ushort port, int maxClients = DefaultMaxClients, ENetOptions options = null)
     {
         options ??= _defaultClientOptions;
 
