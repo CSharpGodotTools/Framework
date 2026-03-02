@@ -18,7 +18,8 @@ internal sealed class RemotePlayers
 
     public void EnsureRemote(uint id)
     {
-        EnsurePlayerNode(id);
+        // node creation occurs when the first position update arrives
+        // (see UpdateTargets).
     }
 
     public void Remove(uint id)

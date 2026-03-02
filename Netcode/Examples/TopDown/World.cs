@@ -142,7 +142,7 @@ public partial class World : Node2D
 
     private void OnRemotePlayerJoined(uint id)
     {
-        _remotePlayers.EnsureRemote(id);
+        // no action required; node is created once its position is known
     }
 
     private void OnRemotePlayerLeft(uint id)
