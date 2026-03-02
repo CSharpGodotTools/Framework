@@ -9,6 +9,16 @@ public abstract class GodotServer : ENetServer
 {
     private const string LogTag = "Server";
 
+    public GodotServer()
+    {
+        RegisterPackets();
+    }
+
+    /// <summary>
+    /// Register all packet handlers for this client.
+    /// </summary>
+    protected abstract void RegisterPackets();
+
     /// <summary>
     /// <para>
     /// Thread-safe server start entrypoint.
