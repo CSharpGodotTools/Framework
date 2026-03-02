@@ -11,6 +11,16 @@ public abstract class GodotClient : ENetClient
     private const string LogTag = "Client";
     private readonly ConcurrentDictionary<Type, Action<ServerPacket>> _serverPacketHandlers = new();
 
+    protected GodotClient()
+    {
+        RegisterPackets();
+    }
+
+    /// <summary>
+    /// Register all packet handlers for this client.
+    /// </summary>
+    protected abstract void RegisterPackets();
+
     /// <summary>
     /// Registers a handler for a specific server packet type.
     /// Handlers run on the Godot main thread.

@@ -20,7 +20,7 @@ public partial class GameClient : GodotClient
     public bool HasLocalId => _hasLocalId;
     public uint LocalId => _localId;
 
-    public GameClient()
+    protected override void RegisterPackets()
     {
         OnPacket<SPacketPlayerJoinedLeaved>(OnPlayerJoinedLeaved);
         OnPacket<SPacketPlayerPositions>(OnPlayerPositions);

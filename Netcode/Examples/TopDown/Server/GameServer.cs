@@ -13,7 +13,7 @@ public partial class GameServer : GodotServer
     private readonly Dictionary<uint, Vector2> _positions = [];
     private long _lastPositionBroadcastTicks;
 
-    public GameServer()
+    protected override void RegisterPackets()
     {
         OnPacket<CPacketPlayerJoinLeave>(OnPlayerJoinLeave);
         OnPacket<CPacketPlayerPosition>(OnPlayerPosition);

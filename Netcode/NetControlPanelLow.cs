@@ -23,7 +23,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
     private string _ip;
     private GodotClient _subscribedClient;
 
-    public Net Net { get; private set; }
+    public Net<TGameClient, TGameServer> Net { get; private set; }
     public ushort CurrentPort => _port;
     public int CurrentMaxClients => DefaultMaxClients;
 
@@ -37,7 +37,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         _port = DefaultPort;
         _ip = DefaultLocalIp;
 
-        Net = CreateNet();
+        Net = new Net<TGameClient, TGameServer>();
         BindUiEvents();
         BindNetEvents();
     }
@@ -57,13 +57,6 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         UnbindNetEvents();
         Net.Dispose();
         Net = null;
-    }
-
-    private static Net CreateNet()
-    {
-        ServerFactory serverFactory = new(() => new TGameServer());
-        ClientFactory clientFactory = new(() => new TGameClient());
-        return new Net(clientFactory, serverFactory);
     }
 
     private void BindUiEvents()
@@ -139,10 +132,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
 
     private void OnStartClientBtnPressed()
     {
-        Task connectTask = Net.StartClient(_ip, _port);
-        _ = connectTask.ContinueWith(
-            task => GameFramework.Logger.LogErr(task.Exception!, "Client start failed"),
-            TaskContinuationOptions.OnlyOnFaulted);
+        Net.StartClient(_ip, _port);
     }
 
     private void OnStopClientBtnPressed()
@@ -241,27 +231,5 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
         }
 
         return ip;
-    }
-
-    private record ClientFactory(Func<GodotClient> Creator) : IGameClientFactory
-    {
-        /// <summary>
-        /// Creates a game client instance.
-        /// </summary>
-        public GodotClient CreateClient()
-        {
-            return Creator();
-        }
-    }
-
-    private record ServerFactory(Func<GodotServer> Creator) : IGameServerFactory
-    {
-        /// <summary>
-        /// Creates a game server instance.
-        /// </summary>
-        public GodotServer CreateServer()
-        {
-            return Creator();
-        }
     }
 }

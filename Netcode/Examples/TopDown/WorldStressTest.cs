@@ -170,7 +170,7 @@ public partial class World
 
         private void EnsureServerRunning()
         {
-            if (TryGetNet(out Net net) && net.Server != null && !net.Server.IsRunning)
+            if (TryGetNet(out Net<GameClient, GameServer> net) && net.Server != null && !net.Server.IsRunning)
             {
                 StartServerWithSettings();
             }
@@ -180,7 +180,7 @@ public partial class World
         {
             if (IsServerRunning())
             {
-                if (TryGetNet(out Net net))
+                if (TryGetNet(out Net<GameClient, GameServer> net))
                 {
                     _port = net.ServerPort;
                     _maxClients = net.ServerMaxClients;
@@ -193,18 +193,15 @@ public partial class World
 
         private void EnsureLocalClientRunning()
         {
-            if (TryGetNet(out Net net) && net.Client != null && !net.Client.IsRunning)
+            if (TryGetNet(out Net<GameClient, GameServer> net) && net.Client != null && !net.Client.IsRunning)
             {
-                Task startTask = net.StartClient("127.0.0.1", _port);
-                _ = startTask.ContinueWith(
-                    t => GameFramework.Logger.LogErr(t.Exception, "WorldStressTest"),
-                    TaskContinuationOptions.OnlyOnFaulted);
+                net.StartClient("127.0.0.1", _port);
             }
         }
 
         private bool IsServerRunning()
         {
-            if (TryGetNet(out Net net) && net.Server != null)
+            if (TryGetNet(out Net<GameClient, GameServer> net) && net.Server != null)
             {
                 return net.Server.IsRunning;
             }
@@ -214,7 +211,7 @@ public partial class World
 
         private void StartServerWithSettings()
         {
-            if (TryGetNet(out Net net))
+            if (TryGetNet(out Net<GameClient, GameServer> net))
             {
                 net.StartServer(_port, _maxClients, CreateSilentOptions());
                 _serverStartedByStressTest = true;
@@ -225,7 +222,7 @@ public partial class World
 
         private bool ShouldRestartServer()
         {
-            if (!TryGetNet(out Net net) || net.Server == null || !net.Server.IsRunning)
+            if (!TryGetNet(out Net<GameClient, GameServer> net) || net.Server == null || !net.Server.IsRunning)
                 return false;
 
             if (!_serverStartedByStressTest)
@@ -239,7 +236,7 @@ public partial class World
 
         private void RequestServerRestart()
         {
-            if (TryGetNet(out Net net) && net.Server != null && _serverStartedByStressTest)
+            if (TryGetNet(out Net<GameClient, GameServer> net) && net.Server != null && _serverStartedByStressTest)
             {
                 _serverRestartPending = true;
                 _paused = true;
@@ -327,7 +324,7 @@ public partial class World
             };
         }
 
-        private bool TryGetNet(out Net net)
+        private bool TryGetNet(out Net<GameClient, GameServer> net)
         {
             net = null;
             if (_world._netControlPanel != null)

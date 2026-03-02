@@ -6,9 +6,12 @@ using System.Threading.Tasks;
 
 namespace Framework.Netcode;
 
-public class Net : IDisposable
+public class Net<TGameClient, TGameServer> : IDisposable
+    where TGameClient : GodotClient, new()
+    where TGameServer : GodotServer, new()
 {
     private const int ShutdownPollIntervalMs = 50;
+    private const int DefaultMaxClients = 500;
 
     private static readonly ENetOptions _defaultClientOptions = new()
     {
@@ -18,9 +21,6 @@ public class Net : IDisposable
         PrintPacketSent = false
     };
 
-    private readonly IGameClientFactory _clientFactory;
-    private readonly IGameServerFactory _serverFactory;
-    private readonly UI.PopupMenu _popupMenu;
     private readonly bool _enetInitialized;
     private long _shutdownStarted;
     private int _disposed;
@@ -40,32 +40,25 @@ public class Net : IDisposable
     /// <summary>
     /// Creates a network coordinator that owns the active server and client instances.
     /// </summary>
-    public Net(IGameClientFactory clientFactory, IGameServerFactory serverFactory)
+    public Net()
     {
-        ArgumentNullException.ThrowIfNull(clientFactory);
-        ArgumentNullException.ThrowIfNull(serverFactory);
-
-        _clientFactory = clientFactory;
-        _serverFactory = serverFactory;
-        _popupMenu = GameFramework.Services.Get<UI.PopupMenu>();
         _enetInitialized = TryInitializeEnet();
 
         Autoloads.Instance.PreQuit += StopThreads;
-        _popupMenu.MainMenuBtnPressed += OnMainMenuBtnPressed;
 
-        Client = _clientFactory.CreateClient();
-        Server = _serverFactory.CreateServer();
+        Client = new TGameClient();
+        Server = new TGameServer();
     }
 
     /// <summary>
     /// Creates and starts a new server instance.
     /// </summary>
-    public void StartServer(ushort port, int maxClients, ENetOptions options)
+    public void StartServer(ushort port, int maxClients = DefaultMaxClients, ENetOptions options = null)
     {
+        options ??= _defaultClientOptions;
+
         if (!CanUseENet())
-        {
             return;
-        }
 
         if (Server.IsRunning)
         {
@@ -76,7 +69,7 @@ public class Net : IDisposable
         ServerPort = port;
         ServerMaxClients = maxClients;
 
-        Server = _serverFactory.CreateServer();
+        Server = new TGameServer();
         ServerCreated?.Invoke(Server);
         Server.Start(port, maxClients, options);
     }
@@ -92,7 +85,7 @@ public class Net : IDisposable
     /// <summary>
     /// Creates and connects a new client instance.
     /// </summary>
-    public async Task StartClient(string ip, ushort port)
+    public void StartClient(string ip, ushort port)
     {
         if (!CanUseENet())
         {
@@ -105,10 +98,11 @@ public class Net : IDisposable
             return;
         }
 
-        Client = _clientFactory.CreateClient();
+        Client = new TGameClient();
         ClientCreated?.Invoke(Client);
 
-        await Client.Connect(ip, port, CloneDefaultClientOptions());
+        // Fire-and-forget connect (if Connect is async)
+        _ = Client.Connect(ip, port, CloneDefaultClientOptions());
     }
 
     /// <summary>
@@ -220,7 +214,11 @@ public class Net : IDisposable
         }
     }
 
-    private void OnMainMenuBtnPressed()
+
+    /// <summary>
+    /// Request to shutdown the server and client.
+    /// </summary>
+    public void RequestShutdown()
     {
         _stopRequestedByMainMenu = true;
         _ = StopThreads();
@@ -237,7 +235,6 @@ public class Net : IDisposable
         }
 
         Autoloads.Instance.PreQuit -= StopThreads;
-        _popupMenu.MainMenuBtnPressed -= OnMainMenuBtnPressed;
 
         if (!_stopRequestedByMainMenu)
         {
