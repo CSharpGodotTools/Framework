@@ -139,10 +139,7 @@ public abstract partial class NetControlPanelLow<TGameClient, TGameServer> : Con
 
     private void OnStartClientBtnPressed()
     {
-        Task connectTask = Net.StartClient(_ip, _port);
-        _ = connectTask.ContinueWith(
-            task => GameFramework.Logger.LogErr(task.Exception!, "Client start failed"),
-            TaskContinuationOptions.OnlyOnFaulted);
+        Net.StartClient(_ip, _port);
     }
 
     private void OnStopClientBtnPressed()

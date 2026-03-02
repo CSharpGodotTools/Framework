@@ -89,7 +89,7 @@ public class Net : IDisposable
     /// <summary>
     /// Creates and connects a new client instance.
     /// </summary>
-    public async Task StartClient(string ip, ushort port)
+    public void StartClient(string ip, ushort port)
     {
         if (!CanUseENet())
         {
@@ -105,7 +105,8 @@ public class Net : IDisposable
         Client = _clientFactory.CreateClient();
         ClientCreated?.Invoke(Client);
 
-        await Client.Connect(ip, port, CloneDefaultClientOptions());
+        // Fire-and-forget connect (if Connect is async)
+        _ = Client.Connect(ip, port, CloneDefaultClientOptions());
     }
 
     /// <summary>

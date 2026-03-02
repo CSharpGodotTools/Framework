@@ -195,10 +195,7 @@ public partial class World
         {
             if (TryGetNet(out Net net) && net.Client != null && !net.Client.IsRunning)
             {
-                Task startTask = net.StartClient("127.0.0.1", _port);
-                _ = startTask.ContinueWith(
-                    t => GameFramework.Logger.LogErr(t.Exception, "WorldStressTest"),
-                    TaskContinuationOptions.OnlyOnFaulted);
+                net.StartClient("127.0.0.1", _port);
             }
         }
 
